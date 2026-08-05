@@ -60,7 +60,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   @override
   void initState() {
-    super.initState() ;
+    super.initState();
     _initMqtt();
   }
 
