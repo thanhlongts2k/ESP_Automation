@@ -332,6 +332,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           ),
           Switch(
             value: value,
+            activeTrackColor: activeColor.withOpacity(0.5),
             activeColor: activeColor,
             onChanged: onChanged,
           ),
