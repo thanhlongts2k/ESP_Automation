@@ -1,0 +1,15 @@
+# Private Environment variables
+.env
+.env.local
+
+# Build outputs & temporary files
+.pio/
+.vscode/
+build/
+dist/
+*.bin
+*.elf
+
+# OS generated files
+.DS_Store
+Thumbs.db
