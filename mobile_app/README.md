@@ -1,6 +1,6 @@
 # ESP_Automation Mobile App (Android & iOS)
 
-Ứng dụng di động di động thông minh được xây dựng trên nền tảng **Flutter**, phục vụ điều khiển và giám sát hệ thống **ESP32 IoT Automation** thời gian thực qua giao thức **MQTT (SSL/TLS & WebSockets)** kết hợp **Local REST API (Wi-Fi)**.
+Ứng dụng di động thông minh được xây dựng trên nền tảng **Flutter**, phục vụ điều khiển và giám sát hệ thống **ESP32 IoT Automation** thời gian thực qua giao thức **MQTT (SSL/TLS & WebSockets)** kết hợp **Local REST API (Wi-Fi)**.
 
 ---
 
@@ -28,28 +28,44 @@
 
 ## 🚀 3. Hướng Dẫn Biên Dịch & Chạy Ứng Dụng
 
-### Bước 1: Di chuyển vào thư mục mobile_app & tải phụ thuộc
+### Bước 1: Tải phụ thuộc Flutter
 ```bash
 cd mobile_app
 flutter pub get
 ```
 
-### Bước 2: Chạy thử nghiệm trực tiếp trên Điện thoại Android (Debug)
-Cắm dây sạc nối điện thoại Android với máy tính (Bật chế độ USB Debugging):
-```bash
-flutter run
-```
-*(Flutter sẽ tự động nhận diện thiết bị Android đang cắm qua ADB và cài đặt App chạy trực tiếp trên máy).*
-
-### Bước 3: Biên dịch ra file cài đặt Android APK (Release)
-```bash
-flutter build apk --release
-```
-*(File APK cài đặt sau khi build thành công nằm tại đường dẫn: `build/app/outputs/flutter-apk/app-release.apk`)*.
+### Bước 2: Biên dịch ứng dụng (Build)
+- **Chạy trực tiếp thử nghiệm (Debug Mode):**
+  ```bash
+  flutter run
+  ```
+- **Build file APK Debug / Release:**
+  ```bash
+  flutter build apk --release
+  ```
 
 ---
 
-## 📂 4. Cấu Trúc Mã Nguồn Mobile App
+## ⚡ 4. LỆNH CÀI ĐẶT ADB SIÊU TỐC VÀO ĐIỆN THOẠI (KHÔNG CẦN REBUILD)
+
+Khi file `.apk` đã được build sẵn, bạn có thể đẩy thẳng vào điện thoại nối dây/Wi-Fi ADB chỉ trong **2 giây** bằng lệnh:
+
+```bash
+# Cài đặt file APK Debug vào điện thoại qua ADB
+adb install -r build\app\outputs\flutter-apk\app-debug.apk
+
+# Hoặc cài đặt file APK Release
+adb install -r build\app\outputs\flutter-apk\app-release.apk
+```
+
+> **📌 LƯU Ý KHI DÙNG VỚI ĐIỆN THOẠI XIAOMI / REDMI / POCO:**
+> - Nếu gặp lỗi `[INSTALL_FAILED_USER_RESTRICTED]`, hãy vào **Cài đặt (Settings) -> Tùy chọn nhà phát triển (Developer Options)**.
+> - Bật công tắc **Cài đặt qua USB (Install via USB)** và **Gỡ lỗi USB (USB Debugging)**.
+> - Khi gõ lệnh `adb install`, nhìn màn hình điện thoại và bấm **Cho phép / Install**.
+
+---
+
+## 📂 5. Cấu Trúc Mã Nguồn Mobile App
 
 ```text
 mobile_app/
