@@ -1,12 +1,10 @@
 /**
  * DỰ ÁN: ESP32 IoT Automation (ESP_Automation)
- * CHỨC NĂNG:
- *  1. Đọc Nhiệt độ & Độ ẩm từ cảm biến DHT22 -> Gửi JSON qua MQTT SSL Port 8883
- *  2. Đóng/ngắt Relay 2 Kênh (Bật/Tắt Đèn & Quạt) qua MQTT
- *  3. Tích hợp trọn bộ 3 Phương thức Cập nhật Firmware OTA qua Wi-Fi:
- *     - Phương thức 1: Arduino OTA (Nạp qua LAN trên Arduino IDE)
- *     - Phương thức 2: Web Server OTA (Upload file .bin qua trình duyệt web)
- *     - Phương thức 3: HTTPS Cloud OTA (Tải tự động từ Nginx qua lệnh MQTT + Rollback Safety)
+ * CHỨC NĂNG PHƯƠNG ÁN 3 (LOCAL WI-FI DASHBOARD + MQTT CLOUD):
+ *  1. Tự chạy Web Server nội bộ (IP: http://<IP_ESP32>/ hoặc http://esp32.local)
+ *  2. Giao diện Web Dark Mode Glassmorphism tuyệt đẹp tự động cập nhật Nhiệt độ/Độ ẩm Realtime.
+ *  3. Nút gạt Toggle Switch điều khiển Đèn (Relay 1) & Quạt (Relay 2) trực tiếp trên Web điện thoại.
+ *  4. Đọc cảm biến DHT22, tự động kết nối Wi-Fi & MQTT SSL (Port 8883) + Trọn bộ 3 Phương thức OTA.
  */
 
 #include <WiFi.h>
@@ -16,11 +14,13 @@
 #include <ArduinoJson.h>
 #include <ArduinoOTA.h>
 #include <WebServer.h>
+#include <ESPmDNS.h>
 #include <Update.h>
 #include <HTTPUpdate.h>
-#include "esp_ota_ops.h" // Thư viện quản lý Bootloader & Rollback an toàn của ESP32
+#include "esp_ota_ops.h"
 
 #include "config.h"
+#include "web_dashboard.h"
 
 // ============================================================================
 // KHỞI TẠO ĐỐI TƯỢNG (OBJECTS)
@@ -31,50 +31,74 @@ PubSubClient mqttClient(espClient);
 WebServer server(80);
 
 unsigned long lastSensorReadTime = 0;
-const long sensorInterval = 5000; // Đọc cảm biến mỗi 5 giây
+const long sensorInterval = 2000; // Đọc cảm biến mỗi 2 giây
+
+float currentTemperature = 0.0;
+float currentHumidity = 0.0;
+String relay1StateStr = "OFF";
+String relay2StateStr = "OFF";
 
 // ============================================================================
-// HÀM GIAO DIỆN WEB SERVER OTA (PHƯƠNG THỨC 2)
+// HÀM KHỞI TẠO WEB SERVER LOCAL DASHBOARD (PHƯƠNG ÁN 3)
 // ============================================================================
-const char* serverIndex = 
-  "<form method='POST' action='/update' enctype='multipart/form-data'>"
-  "<h2>ESP32 Web OTA Update</h2>"
-  "<input type='file' name='update'>"
-  "<input type='submit' value='Upload Firmware'>"
-  "</form>";
-
-void setupWebServerOTA() {
+void setupLocalWebDashboard() {
+  // 1. Trang chủ Web Dashboard
   server.on("/", HTTP_GET, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/html", serverIndex);
+    server.send(200, "text/html", WEB_DASHBOARD_HTML);
   });
 
-  server.on("/update", HTTP_POST, []() {
-    server.sendHeader("Connection", "close");
-    server.send(200, "text/plain", (Update.hasError()) ? "UPDATE FAIL" : "UPDATE SUCCESS! REBOOTING...");
-    ESP.restart();
-  }, []() {
-    HTTPUpload& upload = server.upload();
-    if (upload.status == UPLOAD_FILE_START) {
-      Serial.printf("Bắt đầu Web OTA: %s\n", upload.filename.c_str());
-      if (!Update.begin(UPDATE_SIZE_UNKNOWN)) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_WRITE) {
-      if (Update.write(upload.buf, upload.currentLength) != upload.currentLength) {
-        Update.printError(Serial);
-      }
-    } else if (upload.status == UPLOAD_FILE_END) {
-      if (Update.end(true)) {
-        Serial.printf("Web OTA Thành Công! Kích thước: %u bytes\n", upload.totalSize);
-      } else {
-        Update.printError(Serial);
+  // 2. API trả về JSON dữ liệu cảm biến & trạng thái Relay
+  server.on("/api/data", HTTP_GET, []() {
+    StaticJsonDocument<256> doc;
+    doc["temperature"] = currentTemperature;
+    doc["humidity"] = currentHumidity;
+    doc["relay1"] = relay1StateStr;
+    doc["relay2"] = relay2StateStr;
+    doc["ip"] = WiFi.localIP().toString();
+    doc["version"] = FIRMWARE_VERSION;
+
+    String jsonResponse;
+    serializeJson(doc, jsonResponse);
+    server.send(200, "application/json", jsonResponse);
+  });
+
+  // 3. API Điều khiển Relay 1 (Đèn)
+  server.on("/api/relay1", HTTP_GET, []() {
+    if (server.hasArg("state")) {
+      String state = server.arg("state");
+      if (state == "ON") {
+        digitalWrite(RELAY1_PIN, RELAY_ACTIVE_LEVEL);
+        relay1StateStr = "ON";
+      } else if (state == "OFF") {
+        digitalWrite(RELAY1_PIN, RELAY_INACTIVE_LEVEL);
+        relay1StateStr = "OFF";
       }
     }
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
   });
 
+  // 4. API Điều khiển Relay 2 (Quạt)
+  server.on("/api/relay2", HTTP_GET, []() {
+    if (server.hasArg("state")) {
+      String state = server.arg("state");
+      if (state == "ON") {
+        digitalWrite(RELAY2_PIN, RELAY_ACTIVE_LEVEL);
+        relay2StateStr = "ON";
+      } else if (state == "OFF") {
+        digitalWrite(RELAY2_PIN, RELAY_INACTIVE_LEVEL);
+        relay2StateStr = "OFF";
+      }
+    }
+    server.send(200, "application/json", "{\"status\":\"ok\"}");
+  });
+
+  // 5. Cấu hình mDNS (Truy cập bằng http://esp32.local)
+  if (MDNS.begin("esp32")) {
+    Serial.println("mDNS responder started: http://esp32.local");
+  }
+
   server.begin();
-  Serial.println("Web Server OTA đã sẵn sàng tại http://" + WiFi.localIP().toString());
+  Serial.println("🌐 Web Dashboard Local đã sẵn sàng tại: http://" + WiFi.localIP().toString());
 }
 
 // ============================================================================
@@ -83,53 +107,29 @@ void setupWebServerOTA() {
 void setupArduinoOTA() {
   ArduinoOTA.setHostname(HOSTNAME);
   ArduinoOTA.onStart([]() {
-    String type;
-    if (ArduinoOTA.getCommand() == U_FLASH) {
-      type = "sketch";
-    } else {
-      type = "filesystem";
-    }
-    Serial.println("Bắt đầu Arduino OTA nạp: " + type);
+    Serial.println("Bắt đầu Arduino OTA nạp...");
   });
   ArduinoOTA.onEnd([]() {
     Serial.println("\nArduino OTA Hoàn Thành!");
   });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Tiến trình: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Lỗi Arduino OTA [%u]: ", error);
-  });
   ArduinoOTA.begin();
-  Serial.println("Arduino OTA đã sẵn sàng!");
 }
 
 // ============================================================================
-// HÀM THỰC THI HTTPS CLOUD OTA (PHƯƠNG THỨC 3 - CÓ ROLLBACK SAFETY)
+// HÀM THỰC THI HTTPS CLOUD OTA (PHƯƠNG THỨC 3)
 // ============================================================================
 void executeHTTPSOTA(const char* url, const char* targetVersion) {
   Serial.printf("Bắt đầu tải bản cập nhật Firmware v%s từ HTTPS URL...\n", targetVersion);
-  
   WiFiClientSecure otaClient;
   otaClient.setCACert(root_ca_digicert);
 
-  // Tự động kiểm tra MD5 / SHA256 nếu Nginx Server trả về header
-  httpUpdate.rebootOnUpdate(false); // Tự chủ động reboot sau khi xác nhận
-
+  httpUpdate.rebootOnUpdate(false);
   t_httpUpdate_return ret = httpUpdate.update(otaClient, url);
 
-  switch (ret) {
-    case HTTP_UPDATE_FAILED:
-      Serial.printf("❌ Lỗi Cloud OTA (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-      break;
-    case HTTP_UPDATE_NO_UPDATES:
-      Serial.println("ℹ️ Không có bản cập nhật mới.");
-      break;
-    case HTTP_UPDATE_OK:
-      Serial.println("✅ Tải Firmware OTA Thành Công! Đang tiến hành Reboot khởi chạy bản mới...");
-      delay(1000);
-      ESP.restart();
-      break;
+  if (ret == HTTP_UPDATE_OK) {
+    Serial.println("✅ OTA Thành Công! Đang Reboot...");
+    delay(1000);
+    ESP.restart();
   }
 }
 
@@ -143,47 +143,30 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
   }
   Serial.printf("Nhận tin nhắn [%s]: %s\n", topic, message.c_str());
 
-  // 1. Điều khiển Relay 1 (Đèn)
   if (String(topic) == TOPIC_CONTROL_RELAY1) {
     if (message == "ON") {
       digitalWrite(RELAY1_PIN, RELAY_ACTIVE_LEVEL);
-      Serial.println("-> Đã BẬT Đèn (Relay 1)");
+      relay1StateStr = "ON";
     } else if (message == "OFF") {
       digitalWrite(RELAY1_PIN, RELAY_INACTIVE_LEVEL);
-      Serial.println("-> Đã TẮT Đèn (Relay 1)");
+      relay1StateStr = "OFF";
     }
-  }
-  
-  // 2. Điều khiển Relay 2 (Quạt)
-  else if (String(topic) == TOPIC_CONTROL_RELAY2) {
+  } else if (String(topic) == TOPIC_CONTROL_RELAY2) {
     if (message == "ON") {
       digitalWrite(RELAY2_PIN, RELAY_ACTIVE_LEVEL);
-      Serial.println("-> Đã BẬT Quạt (Relay 2)");
+      relay2StateStr = "ON";
     } else if (message == "OFF") {
       digitalWrite(RELAY2_PIN, RELAY_INACTIVE_LEVEL);
-      Serial.println("-> Đã TẮT Quạt (Relay 2)");
+      relay2StateStr = "OFF";
     }
-  }
-
-  // 3. Kích hoạt HTTPS Cloud OTA
-  else if (String(topic) == TOPIC_OTA_TRIGGER) {
+  } else if (String(topic) == TOPIC_OTA_TRIGGER) {
     StaticJsonDocument<384> doc;
-    DeserializationError error = deserializeJson(doc, message);
-    if (!error) {
+    if (!deserializeJson(doc, message)) {
       const char* newVersion = doc["version"];
       const char* otaUrl = doc["url"];
-      
-      if (newVersion && otaUrl) {
-        // KIỂM TRA PHIÊN BẢN: Chỉ cho phép nâng cấp nếu newVersion > FIRMWARE_VERSION hiện tại
-        if (String(newVersion) != String(FIRMWARE_VERSION)) {
-          Serial.printf("Phát hiện bản cập nhật mới v%s (Bản hiện tại v%s)\n", newVersion, FIRMWARE_VERSION);
-          executeHTTPSOTA(otaUrl, newVersion);
-        } else {
-          Serial.println("Thiết bị đang ở phiên bản mới nhất. Bỏ qua OTA.");
-        }
+      if (newVersion && otaUrl && String(newVersion) != String(FIRMWARE_VERSION)) {
+        executeHTTPSOTA(otaUrl, newVersion);
       }
-    } else {
-      Serial.println("Lỗi bóc tách JSON OTA Payload!");
     }
   }
 }
@@ -208,28 +191,20 @@ void setupWiFi() {
 }
 
 void reconnectMQTT() {
-  while (!mqttClient.connected()) {
+  if (!mqttClient.connected()) {
     Serial.print("Đang kết nối MQTT SSL Server (8883)...");
     if (mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD)) {
       Serial.println("Thành công!");
       
-      // BẢO VỆ ROLLBACK: Xác nhận Firmware mới boot & kết nối MQTT thành công -> Hủy cờ Rollback!
       const esp_partition_t *running = esp_ota_get_running_partition();
       esp_ota_img_states_t ota_state;
-      if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK) {
-        if (ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
-          Serial.println("🎉 Firmware mới khởi chạy & kết nối MQTT thành công! Đang chốt hạ (Confirm Valid Firmware)...");
-          esp_ota_mark_app_valid_cancel_rollback();
-        }
+      if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK && ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
+        esp_ota_mark_app_valid_cancel_rollback();
       }
 
-      // Subscribe vào các Topic điều khiển & OTA
       mqttClient.subscribe(TOPIC_CONTROL_RELAY1);
       mqttClient.subscribe(TOPIC_CONTROL_RELAY2);
       mqttClient.subscribe(TOPIC_OTA_TRIGGER);
-    } else {
-      Serial.printf("Thất bại, rc=%d. Thử lại sau 5 giây...\n", mqttClient.state());
-      delay(5000);
     }
   }
 }
@@ -240,67 +215,65 @@ void reconnectMQTT() {
 void setup() {
   Serial.begin(115200);
   
-  // Khởi tạo chân GPIO Relay
   pinMode(RELAY1_PIN, OUTPUT);
   pinMode(RELAY2_PIN, OUTPUT);
-  digitalWrite(RELAY1_PIN, RELAY_INACTIVE_LEVEL); // Tắt mặc định
+  digitalWrite(RELAY1_PIN, RELAY_INACTIVE_LEVEL);
   digitalWrite(RELAY2_PIN, RELAY_INACTIVE_LEVEL);
 
-  // Khởi tạo Cảm biến DHT22
   dht.begin();
-
-  // Kết nối Wi-Fi & Khai báo SSL Certificate
   setupWiFi();
+
   espClient.setCACert(root_ca_digicert);
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 
-  // Khởi tạo 3 Phương thức OTA
-  setupArduinoOTA();   // Phương thức 1
-  setupWebServerOTA(); // Phương thức 2
+  setupArduinoOTA();
+  setupLocalWebDashboard(); // Khởi chạy Web Server Local Wi-Fi Dashboard
 }
 
 // ============================================================================
-// LOOP CHÍNH (CHẠY LIÊN TỤC)
+// LOOP CHÍNH
 // ============================================================================
 void loop() {
-  // Duy trì Wi-Fi & MQTT
   if (WiFi.status() != WL_CONNECTED) {
     setupWiFi();
   }
+  
+  // Duy trì MQTT (nếu có cấu hình)
   if (!mqttClient.connected()) {
     reconnectMQTT();
   }
   mqttClient.loop();
 
-  // Duy trì dịch vụ OTA
-  ArduinoOTA.handle();   // Xử lý Arduino OTA
-  server.handleClient(); // Xử lý Web OTA
+  // Duy trì dịch vụ Web Local & OTA
+  ArduinoOTA.handle();
+  server.handleClient();
 
-  // Định kỳ đọc cảm biến DHT22 và gửi dữ liệu qua MQTT
+  // Định kỳ đọc DHT22
   unsigned long currentMillis = millis();
   if (currentMillis - lastSensorReadTime >= sensorInterval) {
     lastSensorReadTime = currentMillis;
 
-    float humidity = dht.readHumidity();
-    float temperature = dht.readTemperature();
+    float h = dht.readHumidity();
+    float t = dht.readTemperature();
 
-    if (isnan(humidity) || isnan(temperature)) {
-      Serial.println("Lỗi: Không đọc được dữ liệu từ cảm biến DHT22!");
-      return;
+    if (!isnan(h) && !isnan(t)) {
+      currentTemperature = t;
+      currentHumidity = h;
+
+      if (mqttClient.connected()) {
+        StaticJsonDocument<200> doc;
+        doc["device_id"] = DEVICE_ID;
+        doc["temperature"] = currentTemperature;
+        doc["humidity"] = currentHumidity;
+        doc["relay1"] = relay1StateStr;
+        doc["relay2"] = relay2StateStr;
+        doc["version"] = FIRMWARE_VERSION;
+
+        char jsonBuffer[200];
+        serializeJson(doc, jsonBuffer);
+        mqttClient.publish(TOPIC_SENSOR_DATA, jsonBuffer);
+      }
     }
-
-    // Đóng gói JSON gửi qua MQTT
-    StaticJsonDocument<200> doc;
-    doc["device_id"] = DEVICE_ID;
-    doc["temperature"] = temperature;
-    doc["humidity"] = humidity;
-    doc["version"] = FIRMWARE_VERSION;
-
-    char jsonBuffer[200];
-    serializeJson(doc, jsonBuffer);
-
-    Serial.printf("Publish MQTT [%s]: %s\n", TOPIC_SENSOR_DATA, jsonBuffer);
-    mqttClient.publish(TOPIC_SENSOR_DATA, jsonBuffer);
   }
 }

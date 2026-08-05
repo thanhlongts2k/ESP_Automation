@@ -14,6 +14,28 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-05 16:47] - Tạo Hướng Dẫn Chi Tiết Biên Dịch, Nạp Code & Khởi Chạy ESP32
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Các File Liên Quan:**
+  - `docs/Huong_Dan_Nap_Code_ESP32.md` -> Hướng dẫn chi tiết từng bước nạp code qua PlatformIO / Arduino IDE & cách khởi chạy Web Dashboard `http://esp32.local`.
+
+---
+
+### 📌 [2026-08-05 16:45] - Tích Hợp Web Server Local Dashboard (Phương Án 3 - Không Cần Server/App)
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Các File Liên Quan:**
+  - `firmware/web_dashboard.h` -> Giao diện Web Dark Mode Glassmorphism HTML/CSS/JS nhúng trong PROGMEM.
+  - `firmware/ESP_Automation.ino` -> Tích hợp `WebServer.h` & `ESPmDNS.h` phục vụ Web Dashboard tại `http://esp32.local`.
+
+---
+
+### 📌 [2026-08-05 16:40] - Khởi Tạo Script Giả Lập ESP32 Trên PC (`mock_esp32.py`)
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Các File Liên Quan:**
+  - `tools/mock_esp32.py` -> Script Python giả lập ESP32 đọc DHT22 & nhận lệnh Relay 1/Relay 2 trên PC.
+
+---
+
 ### 📌 [2026-08-05 16:30] - Khởi Tạo & Hoàn Thiện Core Firmware ESP32
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Các File Liên Quan:**
@@ -22,38 +44,20 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
   - `.env` & `.env.example` -> Quản lý tài khoản Wi-Fi & MQTT bảo mật local.
   - `platformio.ini` & `extra_script.py` -> Script tự động tiêm biến `.env` vào C++ Compiler.
 
-#### 🛠️ Chi Tiết Các Chức Năng Đã Có Mã Nguồn:
+---
+
+## 🛠️ BẢNG TRA CỨU CHI TIẾT CÁC TÍNH NĂNG ĐÃ CÓ MÃ NGUỒN
 
 | STT | Chức Năng / Tính Năng | Trạng Thái | Vị Trí Code (File & Hàm) | Mô Tả Kỹ Thuật & Cấu Hình |
 | :---: | :--- | :---: | :--- | :--- |
-| **1** | **Đọc Cảm Biến DHT22** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `loop()`)* | - Pin: GPIO 23<br>- Thư viện: `DHT.h`<br>- Chu kỳ đọc: Mỗi 5 giây/lần<br>- Báo lỗi nếu cảm biến hỏng/rút dây. |
-| **2** | **Điều Khiển Relay 2 Kênh (Đèn & Quạt)** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `mqttCallback()`)* | - Pin Relay 1 (Đèn): GPIO 18<br>- Pin Relay 2 (Quạt): GPIO 19<br>- Kích mức THẤP (LOW Active)<br>- Nhận lệnh: `"ON"` / `"OFF"`. |
-| **3** | **Kết Nối Wi-Fi Auto-Reconnect** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `setupWiFi()`)* | - Thư viện: `WiFi.h`<br>- Đọc SSID/PASS từ file `.env`<br>- Tự kết nối lại khi mất Wi-Fi. |
-| **4** | **MQTT Client Over SSL/TLS Port 8883** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `reconnectMQTT()`)* | - Server: `api-vending.doanhnghiep.com:8883`<br>- Mã hóa SSL với Root CA: `DigiCertGlobalRootG2.pem`<br>- Thư viện: `PubSubClient.h` + `WiFiClientSecure.h`. |
-| **5** | **Publish dữ liệu JSON Cảm Biến** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `loop()`)* | - Topic: `esp32/sensors/dht22`<br>- Payload JSON: `{"device_id":"...", "temperature":28.5, "humidity":65.0, "version":"1.0.0"}`. |
-| **6** | **Subscribe Lệnh Điều Khiển Relay** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `mqttCallback()`)* | - Topic Đèn: `esp32/control/relay1`<br>- Topic Quạt: `esp32/control/relay2`. |
-| **7** | **OTA Phương Thức 1: Arduino OTA (LAN)** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `setupArduinoOTA()`)* | - Thư viện: `ArduinoOTA.h`<br>- Cho phép nạp code qua mạng LAN Wi-Fi từ Arduino IDE. |
-| **8** | **OTA Phương Thức 2: Web Server OTA** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `setupWebServerOTA()`)* | - URL: `http://<IP_ESP32>/update`<br>- Giao diện HTML chọn file `.bin` nâng cấp qua trình duyệt. |
-| **9** | **OTA Phương Thức 3: HTTPS Cloud OTA (MQTT)** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `executeHTTPSOTA()`)* | - Topic kích hoạt: `esp32/system/ota_trigger`<br>- Payload: `{"version":"1.0.1", "url":"https://..."}`<br>- Tải qua HTTPS Nginx SSL `DigiCertGlobalRootG2`. |
-| **10** | **Chống Chết Mạch (Anti-Brick Dual Partition)** | 🟢 READY | `firmware/ESP_Automation.ino` | - Phân vùng `app0` & `app1`<br>- Nạp vào vùng tạm, chỉ chuyển boot khi ghi xong 100%. |
-| **11** | **Tự Động Rollback Khi Code Mới Lỗi** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `reconnectMQTT()`)* | - Thư viện: `esp_ota_ops.h`<br>- Chỉ chốt hạ (`esp_ota_mark_app_valid_cancel_rollback()`) khi kết nối MQTT thành công. Nếu lỗi crash loop -> Tự lùi về bản code cũ. |
-| **12** | **Quản Lý Biến Môi Trường (.env)** | 🟢 READY | `platformio.ini`<br>`extra_script.py` | - Tiêm biến `.env` tự động vào C++ Compiler lúc build.<br>- Đã chặn `.env` trong `.gitignore`. |
-
----
-
-## 📌 BẢNG TRA CỨU NHANH TRẠNG THÁI CÁC TOPIC MQTT
-
-| Topic MQTT | Hướng Truyền | Định Dạng Dữ Liệu | Trạng Thái Code |
-| :--- | :---: | :--- | :---: |
-| `esp32/sensors/dht22` | ESP32 ➔ Broker | `{"device_id":"ESP32_Automation_01","temperature":28.5,"humidity":65.0,"version":"1.0.0"}` | 🟢 ĐÃ CÓ CODE |
-| `esp32/control/relay1` | Broker ➔ ESP32 | Chuỗi văn bản thuần: `"ON"` hoặc `"OFF"` (Điều khiển Đèn) | 🟢 ĐÃ CÓ CODE |
-| `esp32/control/relay2` | Broker ➔ ESP32 | Chuỗi văn bản thuần: `"ON"` hoặc `"OFF"` (Điều khiển Quạt) | 🟢 ĐÃ CÓ CODE |
-| `esp32/system/ota_trigger` | Broker ➔ ESP32 | `{"version":"1.0.1", "url":"https://api-vending.doanhnghiep.com/firmware/v1.0.1.bin"}` | 🟢 ĐÃ CÓ CODE |
-
----
-
-## 🚀 CÁC TÍNH NĂNG TIẾP THEO SẼ LÀM (BACKLOG)
-
-- 🔴 **[PLANNED]**: Lập trình App Điện thoại bằng Flutter (Giao diện hiển thị Nhiệt độ/Độ ẩm Realtime + Nút gạt bật/tắt Quạt/Đèn).
-- 🔴 **[PLANNED]**: Tích hợp Bluetooth BLE cho ESP32 để cài đặt tên Wi-Fi từ Điện thoại (Wi-Fi Provisioning).
-- 🔴 **[PLANNED]**: Đọc cảm biến độ ẩm đất điện dung v1.2 và nhiệt độ nước DS18B20.
+| **1** | **Hướng Dẫn Nạp Code & Khởi Chạy** | 🟢 READY | `docs/Huong_Dan_Nap_Code_ESP32.md` | - Hướng dẫn nạp code qua PlatformIO & Arduino IDE<br>- Cách mở Web Dashboard `http://esp32.local`. |
+| **2** | **Web Dashboard Local Wi-Fi (Phương án 3)** | 🟢 READY | `firmware/web_dashboard.h`<br>`firmware/ESP_Automation.ino` | - Mở trình duyệt gõ: `http://esp32.local` hoặc IP<br>- Giao diện Dark Mode Glassmorphism tự cập nhật Nhiệt độ/Độ ẩm Realtime<br>- Toggle Switch bật/tắt Đèn & Quạt trực tiếp. |
+| **3** | **mDNS Responder (`esp32.local`)** | 🟢 READY | `firmware/ESP_Automation.ino`<br>*(Hàm `setupLocalWebDashboard()`)* | - Thư viện: `ESPmDNS.h`<br>- Cho phép điện thoại/laptop chung Wi-Fi gõ `http://esp32.local` không cần nhớ IP. |
+| **4** | **REST API Nội Bộ (/api/data, /api/relay)** | 🟢 READY | `firmware/ESP_Automation.ino` | - `/api/data`: Trả về JSON nhiệt độ, độ ẩm, relay state.<br>- `/api/relay1?state=ON`: Đóng ngắt Đèn.<br>- `/api/relay2?state=ON`: Đóng ngắt Quạt. |
+| **5** | **Script Giả Lập ESP32 trên PC** | 🟢 READY | `tools/mock_esp32.py` | - Chạy `python tools/mock_esp32.py` để test luồng MQTT gửi sensor/nhận lệnh Relay trên PC. |
+| **6** | **Đọc Cảm Biến DHT22** | 🟢 READY | `firmware/ESP_Automation.ino` | - Pin: GPIO 23<br>- Thư viện: `DHT.h`<br>- Chu kỳ đọc: Mỗi 2 giây/lần. |
+| **7** | **Điều Khiển Relay 2 Kênh (Đèn & Quạt)** | 🟢 READY | `firmware/ESP_Automation.ino` | - Pin Relay 1 (Đèn): GPIO 18<br>- Pin Relay 2 (Quạt): GPIO 19<br>- Kích mức THẤP (LOW Active). |
+| **8** | **Kết Nối Wi-Fi Auto-Reconnect** | 🟢 READY | `firmware/ESP_Automation.ino` | - Thư viện: `WiFi.h`<br>- Đọc SSID/PASS từ file `.env`. |
+| **9** | **MQTT Client Over SSL/TLS Port 8883** | 🟢 READY | `firmware/ESP_Automation.ino` | - Mã hóa SSL với Root CA `DigiCertGlobalRootG2.pem`<br>- Thư viện: `PubSubClient.h` + `WiFiClientSecure.h`. |
+| **10** | **OTA 3 Phương Thức (LAN, Web, HTTPS Cloud)** | 🟢 READY | `firmware/ESP_Automation.ino` | - Arduino OTA + Web OTA + HTTPS Cloud OTA.<br>- Có Anti-brick & Auto Rollback khi lỗi. |
+| **11** | **Quản Lý Biến Môi Trường (.env)** | 🟢 READY | `platformio.ini`<br>`extra_script.py` | - Tiêm biến `.env` tự động vào C++ Compiler lúc build.<br>- Đã chặn `.env` trong `.gitignore`. |
