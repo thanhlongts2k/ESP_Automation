@@ -38,20 +38,27 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   // Cấu hình MQTT & Local IP
-  final String mqttServer = "broker.emqx.io"; // Hoặc "api-vending.doanhnghiep.com"
+  final String mqttServer = "broker.emqx.io";
   final int mqttPort = 1883;
-  final String localIp = "192.168.1.50"; // Hoặc esp32.local
+  final String localIp = "192.168.1.50";
+  final String deviceId = "ESP32_Automation_01";
 
-  final String topicSensor = "esp32/sensors/dht22";
-  final String topicRelay1 = "esp32/control/relay1";
-  final String topicRelay2 = "esp32/control/relay2";
+  // Cụm Topics phân cấp theo device_id
+  late final String topicSensor = "esp32/$deviceId/sensors";
+  late final String topicStatus = "esp32/$deviceId/status";
+  late final String topicRelay1 = "esp32/$deviceId/control/relay1";
+  late final String topicRelay2 = "esp32/$deviceId/control/relay2";
 
   MqttServerClient? mqttClient;
   StreamSubscription? _mqttSubscription;
 
-  bool isConnected = false;
+  bool isMqttConnected = false;
+  bool isDeviceOnline = false; // Nhận diện qua LWT (Last Will and Testament)
   bool isLocalMode = false;
+
   String version = "1.0.0";
+  int rssi = -60;
+  int uptimeSeconds = 0;
 
   // Data Cảm biến
   double temperature = 0.0;
@@ -79,12 +86,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  // Khởi tạo kết nối MQTT chuẩn hóa
+  // Khởi tạo kết nối MQTT Dual Fallback (TCP 1883 ➔ WebSocket 8083)
   Future<void> _initMqtt() async {
     _localTimer?.cancel();
     _mqttSubscription?.cancel();
 
-    // Hủy callback cũ để tránh gọi nhầm
     if (mqttClient != null) {
       mqttClient!.onDisconnected = null;
       mqttClient!.onConnected = null;
@@ -95,7 +101,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final clientId = 'flutter_app_${DateTime.now().millisecondsSinceEpoch}';
 
-    // 1. Kết nối TCP Port 1883
+    // 1. Thử kết nối TCP Port 1883
     mqttClient = MqttServerClient.withPort(mqttServer, clientId, mqttPort);
     mqttClient!.logging(on: false);
     mqttClient!.keepAlivePeriod = 60;
@@ -109,14 +115,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
     mqttClient!.connectionMessage = connMess;
 
     try {
-      debugPrint('--> [MQTT] Đang mở kết nối tới $mqttServer:$mqttPort...');
+      debugPrint('--> [MQTT] Đang mở kết nối TCP tới $mqttServer:$mqttPort...');
       final status = await mqttClient!.connect();
       if (status?.state != MqttConnectionState.connected) {
-        debugPrint('--> [MQTT] Trạng thái chưa kết nối: ${status?.state}. Thử lại WebSocket 8083...');
         _tryWebSocketConnect(clientId);
       }
     } catch (e) {
-      debugPrint('--> [MQTT] TCP 1883 thất bại: $e. Chuyển sang thử WebSocket Port 8083...');
+      debugPrint('--> [MQTT] TCP 1883 thất bại: $e. Thử WebSocket 8083...');
       _tryWebSocketConnect(clientId);
     }
   }
@@ -156,34 +161,53 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (!mounted) return;
 
     setState(() {
-      isConnected = true;
+      isMqttConnected = true;
       isLocalMode = false;
     });
 
-    // Subscribe vào topic sensor
+    // Subscribe cả Topic Cảm biến & Topic LWT Status (Hỗ trợ đọc cả topic cũ lẫn topic mới)
     mqttClient!.subscribe(topicSensor, MqttQos.atMostOnce);
+    mqttClient!.subscribe(topicStatus, MqttQos.atMostOnce);
+    mqttClient!.subscribe("esp32/sensors/dht22", MqttQos.atMostOnce); // Sub dự phòng topic cũ
 
     _mqttSubscription?.cancel();
     _mqttSubscription = mqttClient!.updates?.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
       if (c == null || c.isEmpty) return;
       final recMess = c[0].payload as MqttPublishMessage;
       final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
-      
+      final topic = c[0].topic;
+
       try {
         final data = jsonDecode(pt);
         if (mounted) {
           setState(() {
-            version = data['version']?.toString() ?? version;
-            temperature = (data['temperature'] as num?)?.toDouble() ?? temperature;
-            humidity = (data['humidity'] as num?)?.toDouble() ?? humidity;
-            soilHumidity = (data['soil_humidity'] as num?)?.toDouble() ?? 0.0;
-            
-            final r1Val = data['relay1'] ?? data['relay1_light'];
-            final r2Val = data['relay2'] ?? data['relay2_fan'];
-            
-            relay1State = (r1Val == "ON");
-            relay2State = (r2Val == "ON");
-            isConnected = true;
+            // Xử lý LWT Status Topic
+            if (topic == topicStatus || data.containsKey('status')) {
+              final statusStr = data['status']?.toString().toLowerCase();
+              if (statusStr == 'online') {
+                isDeviceOnline = true;
+              } else if (statusStr == 'offline') {
+                isDeviceOnline = false;
+              }
+            }
+
+            // Xử lý Sensor Telemetry Topic
+            if (topic == topicSensor || topic == "esp32/sensors/dht22" || data.containsKey('temperature')) {
+              isDeviceOnline = true; // Nhận được telemetry chứng tỏ thiết bị đang sống
+              version = data['version']?.toString() ?? version;
+              temperature = (data['temperature'] as num?)?.toDouble() ?? temperature;
+              humidity = (data['humidity'] as num?)?.toDouble() ?? humidity;
+              soilHumidity = (data['soil_humidity'] as num?)?.toDouble() ?? 0.0;
+              rssi = (data['rssi'] as num?)?.toInt() ?? -60;
+              uptimeSeconds = (data['uptime_s'] as num?)?.toInt() ?? uptimeSeconds;
+
+              final r1Val = data['relay1'] ?? data['relay1_light'];
+              final r2Val = data['relay2'] ?? data['relay2_fan'];
+
+              if (r1Val != null) relay1State = (r1Val == "ON");
+              if (r2Val != null) relay2State = (r2Val == "ON");
+            }
+            isMqttConnected = true;
           });
         }
       } catch (e) {
@@ -196,7 +220,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
     debugPrint('❌ [MQTT] Bị ngắt kết nối!');
     if (mounted) {
       setState(() {
-        isConnected = false;
+        isMqttConnected = false;
+        isDeviceOnline = false;
       });
     }
   }
@@ -205,16 +230,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _toggleRelay(int relayNum, bool value) async {
     final stateStr = value ? "ON" : "OFF";
 
-    // 1. Gửi qua MQTT (nếu đang online)
-    if (!isLocalMode && isConnected && mqttClient != null) {
+    if (!isLocalMode && isMqttConnected && mqttClient != null) {
       final builder = MqttClientPayloadBuilder();
       builder.addString(stateStr);
       final topic = relayNum == 1 ? topicRelay1 : topicRelay2;
       mqttClient!.publishMessage(topic, MqttQos.atMostOnce, builder.payload!);
-    }
-
-    // 2. Gửi qua HTTP REST API Local (nếu ở chế độ Local)
-    else {
+    } else {
       try {
         await http.get(Uri.parse('http://$localIp/api/relay$relayNum?state=$stateStr'));
       } catch (e) {
@@ -228,17 +249,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  String _formatUptime(int seconds) {
+    int hrs = seconds ~/ 3600;
+    int mins = (seconds % 3600) ~/ 60;
+    int secs = seconds % 60;
+    return '${hrs}h ${mins}m ${secs}s';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('ESP32 Automation'),
+        title: const Text('ESP32 Automation Cloud'),
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.transparent,
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: isConnected ? Colors.greenAccent : Colors.redAccent),
+            icon: Icon(Icons.refresh, color: isMqttConnected ? Colors.greenAccent : Colors.redAccent),
             onPressed: _initMqtt,
           )
         ],
@@ -247,32 +275,70 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Trạng thái kết nối Badge
+            // Trạng thái kết nối Badge LWT
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
-                color: isConnected ? Colors.green.withOpacity(0.15) : Colors.red.withOpacity(0.15),
+                color: isMqttConnected
+                    ? (isDeviceOnline ? Colors.green.withOpacity(0.15) : Colors.orange.withOpacity(0.15))
+                    : Colors.red.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: isConnected ? Colors.green : Colors.red),
+                border: Border.all(
+                  color: isMqttConnected
+                      ? (isDeviceOnline ? Colors.green : Colors.orange)
+                      : Colors.red,
+                ),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.circle, size: 10, color: isConnected ? Colors.green : Colors.red),
+                  Icon(
+                    Icons.circle,
+                    size: 10,
+                    color: isMqttConnected
+                        ? (isDeviceOnline ? Colors.green : Colors.orange)
+                        : Colors.red,
+                  ),
                   const SizedBox(width: 8),
                   Text(
-                    isConnected
-                        ? (isLocalMode ? 'Local Wi-Fi Mode ($localIp)' : 'MQTT Online ($mqttServer)')
-                        : 'Mất kết nối',
+                    isMqttConnected
+                        ? (isDeviceOnline
+                            ? 'ESP32 Online ($deviceId)'
+                            : 'ESP32 Offline (LWT Status)')
+                        : 'Mất kết nối MQTT',
                     style: TextStyle(
-                      color: isConnected ? Colors.greenAccent : Colors.redAccent,
+                      color: isMqttConnected
+                          ? (isDeviceOnline ? Colors.greenAccent : Colors.orangeAccent)
+                          : Colors.redAccent,
                       fontWeight: FontWeight.bold,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
+
+            // Hiển thị Cường độ sóng Wi-Fi RSSI & Uptime
+            if (isMqttConnected && isDeviceOnline)
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.wifi, size: 16, color: Colors.cyanAccent),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Sóng: $rssi dBm',
+                    style: const TextStyle(fontSize: 12, color: Colors.cyanAccent),
+                  ),
+                  const SizedBox(width: 16),
+                  const Icon(Icons.timer, size: 16, color: Colors.amberAccent),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Uptime: ${_formatUptime(uptimeSeconds)}',
+                    style: const TextStyle(fontSize: 12, color: Colors.amberAccent),
+                  ),
+                ],
+              ),
+            const SizedBox(height: 20),
 
             // Hàng hiển thị Cảm biến
             Row(
@@ -325,11 +391,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
               activeColor: Colors.cyan,
               onChanged: (val) => _toggleRelay(2, val),
             ),
-            
-            const SizedBox(height: 16),
+
+            const SizedBox(height: 20),
             Text(
-              'Firmware Version: v$version',
-              style: const TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1),
+              'Firmware Enterprise: v$version | ID: $deviceId',
+              style: const TextStyle(fontSize: 11, color: Colors.grey, letterSpacing: 0.5),
             ),
           ],
         ),
@@ -344,7 +410,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
@@ -352,16 +418,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: color),
+          Icon(icon, size: 26, color: color),
           const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.5),
+            style: const TextStyle(fontSize: 9, color: Colors.grey, letterSpacing: 0.5),
           ),
         ],
       ),

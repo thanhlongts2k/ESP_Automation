@@ -1,6 +1,6 @@
 # Kế Hoạch & Hướng Dẫn Chi Tiết Cập Nhật Firmware ESP32 Qua Wi-Fi (OTA - Over The Air)
 
-Tài liệu thiết kế kiến trúc và quy trình triển khai tính năng nạp/cập nhật chương trình từ xa cho **ESP32** qua mạng Wi-Fi / Internet mà không cần cắm cáp USB.
+Tài liệu thiết kế kiến trúc và quy trình triển khai tính năng nạp/cập nhật chương trình từ xa cho **ESP32** qua mạng Wi-Fi / Internet mà không cần cắm cáp USB, tích hợp trong **Kiến trúc C++ Modular Enterprise**.
 
 ---
 
@@ -17,7 +17,7 @@ Tài liệu thiết kế kiến trúc và quy trình triển khai tính năng n�
 
 ## 🏗️ 2. Các Phương Thức Triển Khai OTA Cho ESP32
 
-Dự án **ESP_Automation** sẽ quy hoạch 3 phương thức OTA tương ứng với từng giai đoạn phát triển:
+Dự án **ESP_Automation** quy hoạch 3 phương thức OTA tương ứng với từng giai đoạn phát triển:
 
 ```text
                                        ┌──> [1. Arduino OTA] (Mạng LAN nội bộ - Dành cho DEV/Lab)
@@ -31,7 +31,7 @@ Dự án **ESP_Automation** sẽ quy hoạch 3 phương thức OTA tương ứng
 
 ### 🌐 Phương Thức 1: Arduino OTA (Nạp qua mạng LAN nội bộ)
 - **Mục đích:** Dùng trong quá trình lập trình thử nghiệm tại Lab mà không cần tháo dây cáp.
-- **Nguyên lý:** ESP32 khởi chạy dịch vụ lắng nghe cổng nạp trong cùng mạng Wi-Fi LAN với Máy tính. Từ Arduino IDE, anh chọn Port là Địa chỉ IP của ESP32 thay vì cổng COM USB và bấm Nạp.
+- **Nguyên lý:** ESP32 khởi chạy dịch vụ lắng nghe cổng nạp trong cùng mạng Wi-Fi LAN với Máy tính. Từ Arduino IDE / VS Code, chọn Port là Địa chỉ IP của ESP32 thay vì cổng COM USB và bấm Nạp.
 - **Thư viện sử dụng:** `<WiFi.h>`, `<ESPmDNS.h>`, `<ArduinoOTA.h>`
 
 ---
@@ -52,10 +52,10 @@ Dự án **ESP_Automation** sẽ quy hoạch 3 phương thức OTA tương ứng
 
 ```text
 [ 1. Kỹ sư Biên dịch ] ──> Upload file `firmware_v1.0.2.bin` lên Nginx Server (`https://api-vending.doanhnghiep.com/firmware/`)
-                                                                    │
-[ 2. Mobile App / Server ] ──> Gửi lệnh MQTT đến Topic `esp32/system/ota_trigger`
-                               Payload: {"version": "1.0.2", "url": "https://api-vending.doanhnghiep.com/firmware/firmware_v1.0.2.bin"}
-                                                                    │
+                                                                     │
+[ 2. Mobile App / Server ] ──> Gửi lệnh MQTT đến Topic `esp32/{device_id}/system/ota_trigger`
+                                Payload: {"version": "1.0.2", "url": "https://api-vending.doanhnghiep.com/firmware/firmware_v1.0.2.bin"}
+                                                                     │
 [ 3. ESP32 Nhận Lệnh ] ──> Kết nối HTTPS đến Nginx ➔ Tải file .bin qua SSL ➔ Ghi vào vùng nhớ OTA ➔ Reboot hoàn tất!
 ```
 
@@ -75,60 +75,16 @@ Dự án **ESP_Automation** sẽ quy hoạch 3 phương thức OTA tương ứng
 └──────────────┴──────────────┴──────────────────┴──────────────────┴────┘
 ```
 
-### Cơ chế Rollback an toàn:
+### Cơ chế Rollback & Anti-brick tự động:
 1. Khi cập nhật OTA, ESP32 sẽ ghi firmware mới vào vùng **`app1`** (trong khi **`app0`** vẫn đang chạy bình thường).
-2. Sau khi ghi thành công 100% và kiểm tra checksum khớp, Bootloader sẽ đổi cờ khởi động sang **`app1`** và Reboot.
-3. Nếu trong quá trình tải bị rớt mạng hay cúp điện, ESP32 vẫn giữ nguyên bản code cũ ở **`app0`** ➔ Không bao giờ sợ bị hỏng mạch (Anti-brick)!
+2. Sau khi ghi thành công 100%, Bootloader sẽ đổi cờ khởi động sang **`app1`** và Reboot.
+3. Khi boot sang `app1`, ESP32 kết nối tới MQTT thành công sẽ gọi `esp_ota_mark_app_valid_cancel_rollback()` để xác nhận bản nạp hợp lệ.
+4. Nếu trong quá trình tải bị rớt mạng hay cúp điện, ESP32 tự động rollback giữ nguyên bản code cũ ở **`app0`** ➔ **Tuyệt đối không bao giờ bị hỏng mạch (Anti-brick)!**
 
 ---
 
-## 🗓️ 4. Kế Hoạch Lập Trình Triển Khai Tính Năng OTA
-
-### 📌 Bước 1: Khai báo thư viện & Vùng nhớ OTA trong Firmware
-Thêm các thư viện OTA chuẩn của ESP32 vào dự án:
-```cpp
-#include <WiFi.h>
-#include <HTTPClient.h>
-#include <httpsOTAUpdate.h> // Sử dụng OTA bảo mật qua HTTPS SSL
-#include <Update.h>
-```
-
-### 📌 Bước 2: Viết hàm Xử lý Lệnh OTA qua MQTT
-Khi ESP32 nhận được tin nhắn từ Topic `esp32/system/ota_trigger`:
-```cpp
-void callback(char* topic, byte* payload, unsigned int length) {
-  // Parse JSON từ payload: {"version": "1.0.2", "url": "https://..."}
-  // So sánh phiên bản hiện tại với phiên bản mới
-  if (new_version > CURRENT_VERSION) {
-      Serial.println("Bắt đầu tải bản cập nhật OTA...");
-      executeHTTPSOTA(ota_url);
-  }
-}
-```
-
-### 📌 Bước 3: Hàm Tải & Tiến hành Cập nhật HTTPS OTA
-```cpp
-void executeHTTPSOTA(const char* url) {
-    WiFiClientSecure client;
-    client.setCACert(rootCACertificate); // Sử dụng DigiCert Global Root G2
-    
-    tHttpUpdateReturn ret = httpUpdate.update(client, url);
-    switch (ret) {
-        case HTTP_UPDATE_FAILED:
-            Serial.printf("Lỗi OTA: (%d): %s\n", httpUpdate.getLastError(), httpUpdate.getLastErrorString().c_str());
-            break;
-        case HTTP_UPDATE_SUCCESS:
-            Serial.println("Cập nhật OTA thành công! Đang Reboot...");
-            ESP.restart();
-            break;
-    }
-}
-```
-
----
-
-## 🛡️ 5. Các Nguyên Tắc An Toàn Khi Cập Nhật OTA
+## 🛡️ 4. Các Nguyên Tắc An Toàn Khi Cập Nhật OTA
 
 1. **Bắt buộc dùng HTTPS (SSL/TLS):** Không tải file `.bin` qua HTTP thường để tránh bị tấn công Man-in-the-middle chèn mã độc vào ESP32.
-2. **Kiểm tra dung lượng PIN/Nguồn:** Nếu nguồn cấp cho ESP32 bị sụt sút điện áp dưới 3.0V, hoãn quá trình OTA cho đến khi nguồn ổn định.
-3. **Phân biệt phiên bản (Version Check):** Chỉ cho phép OTA khi số phiên bản mới lớn hơn số phiên bản hiện tại (`v1.0.2` > `v1.0.1`).
+2. **Kiểm tra dung lượng PIN/Nguồn:** Nếu nguồn cấp cho ESP32 bị sụt điện áp dưới 3.0V, hoãn quá trình OTA cho đến khi nguồn ổn định.
+3. **Phân biệt phiên bản (Version Check):** Chỉ cho phép OTA khi số phiên bản mới khác với phiên bản hiện tại (`v1.0.2` > `v1.0.1`).

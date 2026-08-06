@@ -2,13 +2,13 @@
 """
 ==============================================================================
  DỰ ÁN: ESP_Automation
- CHỨC NĂNG: SCRIPT GIẢ LẬP VÀ XÁC THỰC HOẠT ĐỘNG CỦA ESP32 TRÊN MÁY TÍNH (PC/LAPTOP)
+ CHỨC NĂNG: SCRIPT GIẢ LẬP ESP32 CLOUD ENTERPRISE TRÊN MÁY TÍNH (PC/LAPTOP)
 ==============================================================================
- Script này chạy trực tiếp trên Python 3 (dùng thư viện paho-mqtt).
- Đóng vai trò là 1 con ESP32 thực tế:
-  1. Tự động sinh dữ liệu giả lập Nhiệt độ & Độ ẩm DHT22 & Độ ẩm đất -> Gửi JSON qua MQTT.
-  2. Lắng nghe lệnh Bật/Tắt Đèn (Relay 1) & Quạt (Relay 2) và in trạng thái ra màn hình.
-  3. Hỗ trợ kết nối cả Broker Public miễn phí (broker.emqx.io:1883) hoặc Nginx SSL (8883).
+ Script này giả lập 100% hành vi của Firmware C++ Modular Enterprise:
+  1. Đăng ký LWT (Last Will & Testament) di chúc -> Tự động báo Offline khi crash/mất mạng.
+  2. Bắn thông điệp Online + Retained States chuẩn phân cấp Topic esp32/{device_id}/...
+  3. Giả lập Nhiệt độ, Độ ẩm DHT22, Độ ẩm đất & RSSI Wi-Fi -> Gửi JSON qua MQTT.
+  4. Lắng nghe lệnh Bật/Tắt Relay 1/2 và hỗ trợ tham chiếu biến từ file .env tự động.
 ==============================================================================
 """
 
@@ -70,17 +70,20 @@ MQTT_PORT = int(_env.get("MQTT_PORT", 1883))
 MQTT_USER = _env.get("MQTT_USER", "")
 MQTT_PASSWORD = _env.get("MQTT_PASSWORD", "")
 
-DEVICE_ID = _env.get("DEVICE_ID", "ESP32_Mock_PC_01")
+DEVICE_ID = _env.get("DEVICE_ID", "ESP32_Automation_01")
 FIRMWARE_VERSION = _env.get("FIRMWARE_VERSION", "1.0.0")
 
-TOPIC_SENSOR_DATA = _env.get("TOPIC_SENSOR_DATA", "esp32/sensors/dht22")
-TOPIC_CONTROL_RELAY1 = _env.get("TOPIC_CONTROL_RELAY1", "esp32/control/relay1")
-TOPIC_CONTROL_RELAY2 = _env.get("TOPIC_CONTROL_RELAY2", "esp32/control/relay2")
-TOPIC_OTA_TRIGGER = _env.get("TOPIC_OTA_TRIGGER", "esp32/system/ota_trigger")
+# Topic chuẩn phân cấp theo DEVICE_ID
+TOPIC_SENSOR_DATA = f"esp32/{DEVICE_ID}/sensors"
+TOPIC_STATUS = f"esp32/{DEVICE_ID}/status"
+TOPIC_CONTROL_RELAY1 = f"esp32/{DEVICE_ID}/control/relay1"
+TOPIC_CONTROL_RELAY2 = f"esp32/{DEVICE_ID}/control/relay2"
+TOPIC_OTA_TRIGGER = f"esp32/{DEVICE_ID}/system/ota_trigger"
 
 # Trạng thái giả lập của Relay
 relay1_state = "OFF" # Đèn
 relay2_state = "OFF" # Quạt
+start_time = time.time()
 
 # ============================================================================
 # CÁC HÀM XỬ LÝ SỰ KIỆN MQTT (CALLBACKS)
@@ -88,16 +91,26 @@ relay2_state = "OFF" # Quạt
 def on_connect(client, userdata, flags, rc, properties=None):
     if rc == 0:
         print("\n==================================================")
-        print("✅ [MOCK ESP32] ĐÃ KẾT NỐI THÀNH CÔNG TỚI MQTT BROKER!")
+        print("✅ [MOCK ESP32 CLOUD] KẾT NỐI THÀNH CÔNG TỚI BROKER!")
         print(f"📡 Server: {MQTT_SERVER}:{MQTT_PORT}")
         print(f"🆔 Device ID: {DEVICE_ID}")
-        print(f"📦 Firmware Version: {FIRMWARE_VERSION}")
+        print(f"📦 Firmware Version: v{FIRMWARE_VERSION}")
         print("==================================================\n")
         
-        # Subscribe vào các topic điều khiển
-        client.subscribe(TOPIC_CONTROL_RELAY1)
-        client.subscribe(TOPIC_CONTROL_RELAY2)
-        client.subscribe(TOPIC_OTA_TRIGGER)
+        # 1. Publish trạng thái Online (Retained = True)
+        online_payload = json.dumps({
+            "status": "online",
+            "device_id": DEVICE_ID,
+            "version": FIRMWARE_VERSION,
+            "timestamp": int(time.time())
+        })
+        client.publish(TOPIC_STATUS, online_payload, qos=1, retain=True)
+        print(f"📢 [LWT STATUS] [{TOPIC_STATUS}] -> ONLINE (Retained=True)")
+        
+        # 2. Subscribe vào các topic điều khiển
+        client.subscribe(TOPIC_CONTROL_RELAY1, qos=1)
+        client.subscribe(TOPIC_CONTROL_RELAY2, qos=1)
+        client.subscribe(TOPIC_OTA_TRIGGER, qos=1)
         
         print(f"📥 Đã Subscribe Topic Relay 1 (Đèn): {TOPIC_CONTROL_RELAY1}")
         print(f"📥 Đã Subscribe Topic Relay 2 (Quạt): {TOPIC_CONTROL_RELAY2}")
@@ -139,13 +152,17 @@ def on_message(client, userdata, msg):
 # CHƯƠNG TRÌNH CHÍNH (MAIN LOOP)
 # ============================================================================
 def main():
-    print("🚀 Đang khởi chạy Script Giả lập ESP32 trên Máy tính...")
+    print("🚀 Đang khởi chạy Script Giả lập ESP32 Enterprise trên Máy tính...")
     
     # Tương thích với cả paho-mqtt v1 và v2
     try:
         client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2, client_id=DEVICE_ID)
     except AttributeError:
         client = mqtt.Client(client_id=DEVICE_ID)
+
+    # Đăng ký thông điệp di chúc LWT (Last Will and Testament): Khi crash/mất mạng -> Báo offline
+    lwt_payload = json.dumps({"status": "offline", "device_id": DEVICE_ID})
+    client.will_set(TOPIC_STATUS, payload=lwt_payload, qos=1, retain=True)
 
     client.on_connect = on_connect
     client.on_message = on_message
@@ -170,23 +187,18 @@ def main():
     current_temp = 28.5
     current_hum = 65.0
     soil_hum = 55.0
-    use_soil_humidity = False
     
     try:
         while True:
-            # Biến động nhiệt độ/độ ẩm ngẫu nhiên nhẹ cho giống thực tế
-            current_temp += random.uniform(-1.0, 1.0)
-            current_hum += random.uniform(-1.5, 1.5)
-            soil_hum += random.uniform(-1.0, 1.0)
-
+            current_temp += random.uniform(-0.5, 0.5)
+            current_hum += random.uniform(-0.8, 0.8)
+            soil_hum += random.uniform(-0.5, 0.5)
+            
             current_temp = round(max(20.0, min(40.0, current_temp)), 1)
             current_hum = round(max(40.0, min(95.0, current_hum)), 1)
             soil_hum = round(max(20.0, min(95.0, soil_hum)), 1)
             
-            if use_soil_humidity == False:
-                soil_hum = 0
-            
-            # Đóng gói JSON Payload (Gửi cả soil_humidity)
+            # Đóng gói JSON Payload Enterprise
             payload = {
                 "device_id": DEVICE_ID,
                 "temperature": current_temp,
@@ -196,10 +208,12 @@ def main():
                 "relay2": relay2_state,
                 "relay1_light": relay1_state,
                 "relay2_fan": relay2_state,
+                "rssi": random.randint(-68, -52), # Giả lập cường độ sóng Wi-Fi dBm
+                "ip": "192.168.1.50",
                 "version": FIRMWARE_VERSION,
-                "timestamp": int(time.time())
+                "uptime_s": int(time.time() - start_time)
             }
-
+            
             json_str = json.dumps(payload)
             print(f"📊 [PUBLISH SENSOR] [{TOPIC_SENSOR_DATA}] ➔ {json_str}")
             client.publish(TOPIC_SENSOR_DATA, json_str)
@@ -207,22 +221,15 @@ def main():
             time.sleep(5) # Đọc và gửi mỗi 5 giây
             
     except KeyboardInterrupt:
-        payload = {
+        # Khi dừng script -> Publish thông điệp offline
+        offline_payload = json.dumps({
+            "status": "offline",
             "device_id": DEVICE_ID,
-            "temperature": 0.0,
-            "humidity": 0.0,
-            "soil_humidity": 0.0,
-            "relay1": "OFF",
-            "relay2": "OFF",
-            "relay1_light": "OFF",
-            "relay2_fan": "OFF",
-            "version": FIRMWARE_VERSION,
             "timestamp": int(time.time())
-        }
-        json_str = json.dumps(payload)
-        client.publish(TOPIC_SENSOR_DATA, json_str)
-
-        print("\n🛑 Đã dừng Script Giả Lập ESP32.")
+        })
+        client.publish(TOPIC_STATUS, offline_payload, qos=1, retain=True)
+        print(f"\n📢 [LWT STATUS] [{TOPIC_STATUS}] -> OFFLINE (Retained=True)")
+        print("🛑 Đã dừng Script Giả Lập ESP32.")
         client.loop_stop()
         client.disconnect()
 
