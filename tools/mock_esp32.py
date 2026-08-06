@@ -149,13 +149,11 @@ def main():
             current_temp = round(max(20.0, min(40.0, current_temp)), 1)
             current_hum = round(max(40.0, min(95.0, current_hum)), 1)
             
-            # Đóng gói JSON Payload (Chuẩn hóa key "relay1" và "relay2" đồng bộ với Firmware & App)
+            # Đóng gói JSON Payload
             payload = {
                 "device_id": DEVICE_ID,
                 "temperature": current_temp,
                 "humidity": current_hum,
-                "relay1": relay1_state,
-                "relay2": relay2_state,
                 "relay1_light": relay1_state,
                 "relay2_fan": relay2_state,
                 "version": FIRMWARE_VERSION,

@@ -108,13 +108,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         setState(() {
           temperature = (data['temperature'] as num).toDouble();
           humidity = (data['humidity'] as num).toDouble();
-          
-          // Hỗ trợ đọc cả key "relay1" lẫn "relay1_light" linh hoạt
-          final r1Val = data['relay1'] ?? data['relay1_light'];
-          final r2Val = data['relay2'] ?? data['relay2_fan'];
-          
-          relay1State = (r1Val == "ON");
-          relay2State = (r2Val == "ON");
+          relay1State = data['relay1'] == "ON";
+          relay2State = data['relay2'] == "ON";
         });
       } catch (e) {
         debugPrint('Lỗi bóc tách JSON MQTT: $e');
@@ -143,12 +138,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           setState(() {
             temperature = (data['temperature'] as num).toDouble();
             humidity = (data['humidity'] as num).toDouble();
-            
-            final r1Val = data['relay1'] ?? data['relay1_light'];
-            final r2Val = data['relay2'] ?? data['relay2_fan'];
-            
-            relay1State = (r1Val == "ON");
-            relay2State = (r2Val == "ON");
+            relay1State = data['relay1'] == "ON";
+            relay2State = data['relay2'] == "ON";
             isConnected = true;
           });
         }
