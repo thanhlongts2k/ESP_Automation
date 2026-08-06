@@ -1,13 +1,20 @@
 #include "mqtt_manager.h"
 #include "esp_ota_ops.h"
 
+// Con trỏ toàn cục dùng cho tĩnh callback PubSubClient
 static MQTTManager* instance = nullptr;
 
+/**
+ * @brief Khởi tạo các mốc thời gian Backoff ban đầu
+ */
 MQTTManager::MQTTManager()
     : _lastReconnectAttempt(0), _currentBackoffInterval(2000), _lastTelemetryPublish(0) {
     instance = this;
 }
 
+/**
+ * @brief Cấu hình Client (SSL 8883 hoặc TCP 1883), gán Callback và tăng kích thước Buffer
+ */
 void MQTTManager::begin(MQTTCommandCallback callback) {
     _commandCallback = callback;
 
@@ -22,9 +29,12 @@ void MQTTManager::begin(MQTTCommandCallback callback) {
 
     _mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
     _mqttClient.setCallback(_staticMqttCallback);
-    _mqttClient.setBufferSize(512); // Đảm bảo buffer chứa đủ JSON payload lớn
+    _mqttClient.setBufferSize(512); // Mở rộng buffer bộ nhớ lên 512 bytes chứa đủ gói JSON telemetry lớn
 }
 
+/**
+ * @brief Callback tĩnh nhận tín hiệu tin nhắn từ thư viện PubSubClient C-style
+ */
 void MQTTManager::_staticMqttCallback(char* topic, byte* payload, unsigned int length) {
     if (instance && instance->_commandCallback) {
         String message = "";
@@ -35,23 +45,32 @@ void MQTTManager::_staticMqttCallback(char* topic, byte* payload, unsigned int l
     }
 }
 
+/**
+ * @brief Vòng lặp kiểm tra trạng thái và duy trì kết nối ngầm (Exponential Backoff Non-blocking)
+ */
 void MQTTManager::loop(bool isWifiConnected) {
-    if (!isWifiConnected) return;
+    if (!isWifiConnected) return; // Nếu chưa có Wi-Fi thì bỏ qua không thử MQTT
 
     if (!_mqttClient.connected()) {
         unsigned long now = millis();
+        // Áp dụng thuật toán lùi thời gian ngầm Exponential Backoff (2s, 4s, 8s... max 60s)
         if (now - _lastReconnectAttempt >= _currentBackoffInterval) {
             _lastReconnectAttempt = now;
             _connect();
         }
     } else {
-        _mqttClient.loop();
+        _mqttClient.loop(); // Duy trì vòng lặp giữ kết nối Ping/Pong với MQTT Broker
     }
 }
 
+/**
+ * @brief Hàm thực thi kết nối MQTT Cloud với LWT Di chúc & Cụm Topic phân cấp theo Device ID
+ */
 void MQTTManager::_connect() {
     Serial.printf("📡 [MQTT] Đang thử kết nối tới %s:%d (Backoff %lums)...\n", MQTT_SERVER, MQTT_PORT, _currentBackoffInterval);
 
+    // 1. Chuẩn bị thông điệp di chúc LWT (Last Will and Testament)
+    // Nếu ESP32 bị sụt nguồn đột ngột hay rớt mạng, Broker sẽ tự động phát gói này cho các Client
     String lwtTopic = getTopicStatus();
     StaticJsonDocument<128> lwtDoc;
     lwtDoc["status"] = "offline";
@@ -59,7 +78,7 @@ void MQTTManager::_connect() {
     String lwtPayload;
     serializeJson(lwtDoc, lwtPayload);
 
-    // Đăng ký LWT (Last Will & Testament): Topic status, Payload offline, QoS 1, Retain true
+    // 2. Thực hiện kết nối với LWT Topic status, Payload offline, QoS 1, Retain true
     bool connected = false;
     if (String(MQTT_USER).length() > 0) {
         connected = _mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD, lwtTopic.c_str(), 1, true, lwtPayload.c_str());
@@ -69,9 +88,9 @@ void MQTTManager::_connect() {
 
     if (connected) {
         Serial.println("✅ [MQTT] ĐÃ KẾT NỐI THÀNH CÔNG TỚI BROKER CLOUD!");
-        _currentBackoffInterval = 2000; // Reset Backoff interval về 2s khi kết nối lại thành công
+        _currentBackoffInterval = 2000; // Reset thời gian lùi lại về mức 2s khi kết nối lại thành công
 
-        // 1. Kiểm tra Anti-brick OTA Rollback nếu vừa cập nhật firmware mới
+        // 3. Kiểm tra Anti-brick OTA Rollback nếu vừa nâng cấp firmware mới
         const esp_partition_t *running = esp_ota_get_running_partition();
         esp_ota_img_states_t ota_state;
         if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK && ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
@@ -79,7 +98,7 @@ void MQTTManager::_connect() {
             Serial.println("🛡️ [OTA Anti-brick] Đã xác nhận Firmware mới hoạt động tốt!");
         }
 
-        // 2. Publish thông điệp trạng thái Online (Retained = true)
+        // 4. Publish thông điệp trạng thái Online (Retained = true)
         StaticJsonDocument<128> onlineDoc;
         onlineDoc["status"] = "online";
         onlineDoc["device_id"] = DEVICE_ID;
@@ -88,7 +107,7 @@ void MQTTManager::_connect() {
         serializeJson(onlineDoc, onlinePayload);
         _mqttClient.publish(lwtTopic.c_str(), onlinePayload.c_str(), true);
 
-        // 3. Subscribe các Topic điều khiển phân cấp theo device_id
+        // 5. Subscribe các Topic điều khiển phân cấp theo DEVICE_ID
         String tRelay1 = getTopicRelay1Control();
         String tRelay2 = getTopicRelay2Control();
         String tOTA = getTopicOTATrigger();
@@ -108,10 +127,16 @@ void MQTTManager::_connect() {
     }
 }
 
+/**
+ * @brief Trạng thái kết nối MQTT
+ */
 bool MQTTManager::isConnected() {
     return _mqttClient.connected();
 }
 
+/**
+ * @brief Gửi dữ liệu Telemetry JSON đầy đủ các chỉ số cảm biến và trạng thái hệ thống
+ */
 void MQTTManager::publishTelemetry(float temp, float hum, float soilHum, bool relay1, bool relay2, int rssi, const String& ip) {
     if (!isConnected()) return;
 
@@ -137,6 +162,9 @@ void MQTTManager::publishTelemetry(float temp, float hum, float soilHum, bool re
     Serial.printf("📊 [MQTT Telemetry] [%s] -> %s\n", sensorTopic.c_str(), buffer);
 }
 
+/**
+ * @brief Gửi thông điệp cập nhật trạng thái Relay với cờ Retained = true
+ */
 void MQTTManager::publishRelayStatus(int relayNum, bool state) {
     if (!isConnected()) return;
 
