@@ -6,7 +6,7 @@
 ==============================================================================
  Script này chạy trực tiếp trên Python 3 (dùng thư viện paho-mqtt).
  Đóng vai trò là 1 con ESP32 thực tế:
-  1. Tự động sinh dữ liệu giả lập Nhiệt độ & Độ ẩm DHT22 -> Gửi JSON qua MQTT.
+  1. Tự động sinh dữ liệu giả lập Nhiệt độ & Độ ẩm DHT22 & Độ ẩm đất -> Gửi JSON qua MQTT.
   2. Lắng nghe lệnh Bật/Tắt Đèn (Relay 1) & Quạt (Relay 2) và in trạng thái ra màn hình.
   3. Hỗ trợ kết nối cả Broker Public miễn phí (broker.emqx.io:1883) hoặc Nginx SSL (8883).
 ==============================================================================
@@ -34,20 +34,49 @@ except ImportError:
     sys.exit(1)
 
 # ============================================================================
-# CẤU HÌNH THÔNG SỐ GIẢ LẬP
+# HÀM ĐỌC BẢO MẬT TỪ FILE .ENV (HỖ TRỢ THAM CHIẾU BIẾN TỰ ĐỘNG)
 # ============================================================================
-MQTT_SERVER = "broker.emqx.io"  # Thay bằng "api-vending.doanhnghiep.com" hoặc "broker.emqx.io"
-MQTT_PORT = 1883                # 1883 cho TCP thường, 8883 cho SSL/TLS
-MQTT_USER = ""
-MQTT_PASSWORD = ""
+def load_env_config():
+    config = {}
+    base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    env_path = os.path.join(base_dir, ".env")
+    if not os.path.exists(env_path):
+        env_path = os.path.join(os.getcwd(), ".env")
+    if os.path.exists(env_path):
+        with open(env_path, "r", encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, val = line.split("=", 1)
+                    config[key.strip()] = val.strip().strip('"').strip("'")
+                    
+        # Giải quyết biến tham chiếu (Ví dụ: MQTT_SERVER=MQTT_SERVER1 hoặc ${MQTT_SERVER1})
+        for k, v in list(config.items()):
+            for ref_k, ref_v in config.items():
+                v = v.replace(f"${{{ref_k}}}", ref_v).replace(f"${ref_k}", ref_v)
+            if v in config:
+                v = config[v]
+            config[k] = v
 
-DEVICE_ID = "ESP32_Mock_PC_01"
-FIRMWARE_VERSION = "1.0.0"
+    return config
 
-TOPIC_SENSOR_DATA = "esp32/sensors/dht22"
-TOPIC_CONTROL_RELAY1 = "esp32/control/relay1"
-TOPIC_CONTROL_RELAY2 = "esp32/control/relay2"
-TOPIC_OTA_TRIGGER = "esp32/system/ota_trigger"
+_env = load_env_config()
+
+# ============================================================================
+# CẤU HÌNH THÔNG SỐ GIẢ LẬP (ĐỌC TỪ .ENV HOẶC DÙNG MẶC ĐỊNH)
+# ============================================================================
+MQTT_SERVER = _env.get("MQTT_SERVER", "broker.emqx.io")
+MQTT_PORT = int(_env.get("MQTT_PORT", 1883))
+MQTT_USER = _env.get("MQTT_USER", "")
+MQTT_PASSWORD = _env.get("MQTT_PASSWORD", "")
+
+DEVICE_ID = _env.get("DEVICE_ID", "ESP32_Mock_PC_01")
+FIRMWARE_VERSION = _env.get("FIRMWARE_VERSION", "1.0.0")
+
+TOPIC_SENSOR_DATA = _env.get("TOPIC_SENSOR_DATA", "esp32/sensors/dht22")
+TOPIC_CONTROL_RELAY1 = _env.get("TOPIC_CONTROL_RELAY1", "esp32/control/relay1")
+TOPIC_CONTROL_RELAY2 = _env.get("TOPIC_CONTROL_RELAY2", "esp32/control/relay2")
+TOPIC_OTA_TRIGGER = _env.get("TOPIC_OTA_TRIGGER", "esp32/system/ota_trigger")
 
 # Trạng thái giả lập của Relay
 relay1_state = "OFF" # Đèn
@@ -62,6 +91,7 @@ def on_connect(client, userdata, flags, rc, properties=None):
         print("✅ [MOCK ESP32] ĐÃ KẾT NỐI THÀNH CÔNG TỚI MQTT BROKER!")
         print(f"📡 Server: {MQTT_SERVER}:{MQTT_PORT}")
         print(f"🆔 Device ID: {DEVICE_ID}")
+        print(f"📦 Firmware Version: {FIRMWARE_VERSION}")
         print("==================================================\n")
         
         # Subscribe vào các topic điều khiển
@@ -139,27 +169,37 @@ def main():
     # Giả lập nhiệt độ độ ẩm ban đầu
     current_temp = 28.5
     current_hum = 65.0
+    soil_hum = 55.0
+    use_soil_humidity = False
     
     try:
         while True:
             # Biến động nhiệt độ/độ ẩm ngẫu nhiên nhẹ cho giống thực tế
-            current_temp += random.uniform(-0.3, 0.3)
-            current_hum += random.uniform(-0.5, 0.5)
-            
+            current_temp += random.uniform(-1.0, 1.0)
+            current_hum += random.uniform(-1.5, 1.5)
+            soil_hum += random.uniform(-1.0, 1.0)
+
             current_temp = round(max(20.0, min(40.0, current_temp)), 1)
             current_hum = round(max(40.0, min(95.0, current_hum)), 1)
+            soil_hum = round(max(20.0, min(95.0, soil_hum)), 1)
             
-            # Đóng gói JSON Payload
+            if use_soil_humidity == False:
+                soil_hum = 0
+            
+            # Đóng gói JSON Payload (Gửi cả soil_humidity)
             payload = {
                 "device_id": DEVICE_ID,
                 "temperature": current_temp,
                 "humidity": current_hum,
+                "soil_humidity": soil_hum,
+                "relay1": relay1_state,
+                "relay2": relay2_state,
                 "relay1_light": relay1_state,
                 "relay2_fan": relay2_state,
                 "version": FIRMWARE_VERSION,
                 "timestamp": int(time.time())
             }
-            
+
             json_str = json.dumps(payload)
             print(f"📊 [PUBLISH SENSOR] [{TOPIC_SENSOR_DATA}] ➔ {json_str}")
             client.publish(TOPIC_SENSOR_DATA, json_str)
@@ -167,6 +207,21 @@ def main():
             time.sleep(5) # Đọc và gửi mỗi 5 giây
             
     except KeyboardInterrupt:
+        payload = {
+            "device_id": DEVICE_ID,
+            "temperature": 0.0,
+            "humidity": 0.0,
+            "soil_humidity": 0.0,
+            "relay1": "OFF",
+            "relay2": "OFF",
+            "relay1_light": "OFF",
+            "relay2_fan": "OFF",
+            "version": FIRMWARE_VERSION,
+            "timestamp": int(time.time())
+        }
+        json_str = json.dumps(payload)
+        client.publish(TOPIC_SENSOR_DATA, json_str)
+
         print("\n🛑 Đã dừng Script Giả Lập ESP32.")
         client.loop_stop()
         client.disconnect()

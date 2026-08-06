@@ -47,12 +47,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
   final String topicRelay2 = "esp32/control/relay2";
 
   MqttServerClient? mqttClient;
+  StreamSubscription? _mqttSubscription;
+
   bool isConnected = false;
   bool isLocalMode = false;
+  String version = "1.0.0";
 
   // Data Cảm biến
   double temperature = 0.0;
   double humidity = 0.0;
+  double soilHumidity = 0.0;
   bool relay1State = false; // Đèn
   bool relay2State = false; // Quạt
 
@@ -67,50 +71,121 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _localTimer?.cancel();
-    mqttClient?.disconnect();
+    _mqttSubscription?.cancel();
+    try {
+      mqttClient?.onDisconnected = null;
+      mqttClient?.disconnect();
+    } catch (_) {}
     super.dispose();
   }
 
-  // Khởi tạo kết nối MQTT
+  // Khởi tạo kết nối MQTT chuẩn hóa
   Future<void> _initMqtt() async {
-    mqttClient = MqttServerClient(mqttServer, 'flutter_app_${DateTime.now().millisecondsSinceEpoch}');
-    mqttClient!.port = mqttPort;
+    _localTimer?.cancel();
+    _mqttSubscription?.cancel();
+
+    // Hủy callback cũ để tránh gọi nhầm
+    if (mqttClient != null) {
+      mqttClient!.onDisconnected = null;
+      mqttClient!.onConnected = null;
+      try {
+        mqttClient!.disconnect();
+      } catch (_) {}
+    }
+
+    final clientId = 'flutter_app_${DateTime.now().millisecondsSinceEpoch}';
+
+    // 1. Kết nối TCP Port 1883
+    mqttClient = MqttServerClient.withPort(mqttServer, clientId, mqttPort);
     mqttClient!.logging(on: false);
-    mqttClient!.keepAlivePeriod = 20;
+    mqttClient!.keepAlivePeriod = 60;
+    mqttClient!.autoReconnect = true;
     mqttClient!.onDisconnected = _onDisconnected;
     mqttClient!.onConnected = _onConnected;
 
     final connMess = MqttConnectMessage()
-        .withClientIdentifier('flutter_app_${DateTime.now().millisecondsSinceEpoch}')
+        .withClientIdentifier(clientId)
         .startClean();
     mqttClient!.connectionMessage = connMess;
 
     try {
-      await mqttClient!.connect();
+      debugPrint('--> [MQTT] Đang mở kết nối tới $mqttServer:$mqttPort...');
+      final status = await mqttClient!.connect();
+      if (status?.state != MqttConnectionState.connected) {
+        debugPrint('--> [MQTT] Trạng thái chưa kết nối: ${status?.state}. Thử lại WebSocket 8083...');
+        _tryWebSocketConnect(clientId);
+      }
     } catch (e) {
-      debugPrint('Lỗi kết nối MQTT: $e');
-      _switchToLocalMode();
+      debugPrint('--> [MQTT] TCP 1883 thất bại: $e. Chuyển sang thử WebSocket Port 8083...');
+      _tryWebSocketConnect(clientId);
+    }
+  }
+
+  Future<void> _tryWebSocketConnect(String clientId) async {
+    try {
+      if (mqttClient != null) {
+        mqttClient!.onDisconnected = null;
+        mqttClient!.onConnected = null;
+        try { mqttClient!.disconnect(); } catch (_) {}
+      }
+
+      final wsClientId = '${clientId}_ws';
+      mqttClient = MqttServerClient.withPort(mqttServer, wsClientId, 8083);
+      mqttClient!.useWebSocket = true;
+      mqttClient!.websocketProtocols = MqttClientConstants.protocolsSingleDefault;
+      mqttClient!.logging(on: false);
+      mqttClient!.keepAlivePeriod = 60;
+      mqttClient!.autoReconnect = true;
+      mqttClient!.onDisconnected = _onDisconnected;
+      mqttClient!.onConnected = _onConnected;
+
+      final connMessWS = MqttConnectMessage()
+          .withClientIdentifier(wsClientId)
+          .startClean();
+      mqttClient!.connectionMessage = connMessWS;
+
+      await mqttClient!.connect();
+    } catch (eWS) {
+      debugPrint('--> [MQTT] WebSocket Port 8083 thất bại: $eWS');
+      _onDisconnected();
     }
   }
 
   void _onConnected() {
+    debugPrint('✅ [MQTT] Đã kết nối thành công!');
+    if (!mounted) return;
+
     setState(() {
       isConnected = true;
       isLocalMode = false;
     });
+
+    // Subscribe vào topic sensor
     mqttClient!.subscribe(topicSensor, MqttQos.atMostOnce);
-    mqttClient!.updates!.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
-      final recMess = c![0].payload as MqttPublishMessage;
+
+    _mqttSubscription?.cancel();
+    _mqttSubscription = mqttClient!.updates?.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
+      if (c == null || c.isEmpty) return;
+      final recMess = c[0].payload as MqttPublishMessage;
       final pt = MqttPublishPayload.bytesToStringAsString(recMess.payload.message);
       
       try {
         final data = jsonDecode(pt);
-        setState(() {
-          temperature = (data['temperature'] as num).toDouble();
-          humidity = (data['humidity'] as num).toDouble();
-          relay1State = data['relay1'] == "ON";
-          relay2State = data['relay2'] == "ON";
-        });
+        if (mounted) {
+          setState(() {
+            version = data['version']?.toString() ?? version;
+            temperature = (data['temperature'] as num?)?.toDouble() ?? temperature;
+            humidity = (data['humidity'] as num?)?.toDouble() ?? humidity;
+            soilHumidity = (data['soil_humidity'] as num?)?.toDouble() ?? 0.0;
+            
+            final r1Val = data['relay1'] ?? data['relay1_light'];
+            final r2Val = data['relay2'] ?? data['relay2_fan'];
+            
+            relay1State = (r1Val == "ON");
+            relay2State = (r2Val == "ON");
+            isConnected = true;
+          });
+        }
       } catch (e) {
         debugPrint('Lỗi bóc tách JSON MQTT: $e');
       }
@@ -118,37 +193,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _onDisconnected() {
-    setState(() {
-      isConnected = false;
-    });
-    _switchToLocalMode();
-  }
-
-  // Tự chuyển sang chế độ Local Wi-Fi REST API nếu rớt MQTT
-  void _switchToLocalMode() {
-    setState(() {
-      isLocalMode = true;
-    });
-    _localTimer?.cancel();
-    _localTimer = Timer.periodic(const Duration(seconds: 2), (timer) async {
-      try {
-        final response = await http.get(Uri.parse('http://$localIp/api/data')).timeout(const Duration(seconds: 2));
-        if (response.statusCode == 200) {
-          final data = jsonDecode(response.body);
-          setState(() {
-            temperature = (data['temperature'] as num).toDouble();
-            humidity = (data['humidity'] as num).toDouble();
-            relay1State = data['relay1'] == "ON";
-            relay2State = data['relay2'] == "ON";
-            isConnected = true;
-          });
-        }
-      } catch (_) {
-        setState(() {
-          isConnected = false;
-        });
-      }
-    });
+    debugPrint('❌ [MQTT] Bị ngắt kết nối!');
+    if (mounted) {
+      setState(() {
+        isConnected = false;
+      });
+    }
   }
 
   // Điều khiển Relay (Đèn / Quạt)
@@ -212,7 +262,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   const SizedBox(width: 8),
                   Text(
                     isConnected
-                        ? (isLocalMode ? 'Local Wi-Fi Mode (192.168.1.50)' : 'MQTT Online ($mqttServer)')
+                        ? (isLocalMode ? 'Local Wi-Fi Mode ($localIp)' : 'MQTT Online ($mqttServer)')
                         : 'Mất kết nối',
                     style: TextStyle(
                       color: isConnected ? Colors.greenAccent : Colors.redAccent,
@@ -235,13 +285,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.orangeAccent,
                   ),
                 ),
-                const SizedBox(width: 16),
+                const SizedBox(width: 8),
                 Expanded(
                   child: _buildSensorCard(
                     title: 'ĐỘ ẨM',
                     value: '${humidity.toStringAsFixed(1)} %',
                     icon: Icons.water_drop,
                     color: Colors.lightBlueAccent,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _buildSensorCard(
+                    title: 'ĐỘ ẨM ĐẤT',
+                    value: '${soilHumidity.toStringAsFixed(1)} %',
+                    icon: Icons.eco,
+                    color: Colors.brown,
                   ),
                 ),
               ],
@@ -266,6 +325,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
               activeColor: Colors.cyan,
               onChanged: (val) => _toggleRelay(2, val),
             ),
+            
+            const SizedBox(height: 16),
+            Text(
+              'Firmware Version: v$version',
+              style: const TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1),
+            ),
           ],
         ),
       ),
@@ -279,24 +344,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16),
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 36, color: color),
-          const SizedBox(height: 12),
+          Icon(icon, size: 28, color: color),
+          const SizedBox(height: 8),
           Text(
             value,
-            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white),
+            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: const TextStyle(fontSize: 12, color: Colors.grey, letterSpacing: 1),
+            style: const TextStyle(fontSize: 10, color: Colors.grey, letterSpacing: 0.5),
           ),
         ],
       ),
