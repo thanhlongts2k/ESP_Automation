@@ -1,56 +1,60 @@
 # Hướng Dẫn Chi Tiết Biên Dịch, Nạp Code & Khởi Chạy ESP32
 
-Tài liệu hướng dẫn từng bước cách nạp chương trình vào bo mạch **ESP32 Type-C** và khởi chạy Web Server Dashboard nội bộ (Phương án 3).
+Tài liệu hướng dẫn chi tiết từng bước cách biên dịch chương trình, nạp firmware vào bo mạch **ESP32 Type-C** và khởi chạy Web Server Dashboard nội bộ (Phương án 3).
 
 ---
 
 ## 🛠️ PHƯƠNG PHÁP 1: NẠP CODE BẰNG VS CODE + PLATFORMIO (KHUYÊN DÙNG ★)
 
-Project **ESP_Automation** đã được cấu hình sẵn môi trường PlatformIO tự động hóa 100%.
+Dự án **ESP_Automation** đã được cấu hình sẵn môi trường PlatformIO tự động đọc biến từ file `.env` lúc biên dịch.
 
-### Các Bước Thực Hiện:
+### 📋 Hướng Dẫn Từng Bước Chi Tiết:
 
-1. **Điền thông tin Wi-Fi của bạn:**
-   - Mở file `.env` ở thư mục gốc dự án:
-     ```env
-     WIFI_SSID="Tên_WiFi_Nhà_Bạn"
-     WIFI_PASSWORD="Mật_Khẩu_WiFi_Nhà_Bạn"
-     ```
-2. **Cắm mạch ESP32 vào Máy tính:**
-   - Dùng cáp Type-C cắm từ ESP32 vào cổng USB máy tính.
-3. **Mở Project trong VS Code:**
-   - Cài Extension **PlatformIO IDE** trong VS Code (nếu chưa có).
-   - Chọn `File -> Open Folder` ➔ Trỏ tới thư mục `D:\Sources\ESP_Automation`.
-4. **Bấm Nạp Code (Upload):**
-   - Nhấp vào biểu tượng **PlatformIO** (Hình con kiến ở thanh bên trái).
-   - Bấm nút **Build** (để kiểm tra lỗi) ➔ Bấm nút **Upload** (để nạp code sang ESP32).
-   - *(Hoặc mở Terminal trong VS Code gõ lệnh: `pio run -t upload`)*.
-5. **Mở Serial Monitor xem log:**
-   - Bấm nút **Serial Monitor** (115200 baud).
-   - Màn hình sẽ in ra IP của ESP32 (Ví dụ: `IP Address: 192.168.1.50`).
+#### 1️⃣ Bước 1: Điền thông tin Wi-Fi nhà bạn
+- Mở file **[.env](file:///d:/Sources/ESP_Automation/.env)** ở thư mục gốc dự án:
+  ```env
+  WIFI_SSID="Tên_WiFi_Nhà_Bạn"
+  WIFI_PASSWORD="Mật_Khẩu_WiFi_Nhà_Bạn"
+  ```
+
+#### 2️⃣ Bước 2: Cắm bo mạch ESP32 vào máy tính
+- Dùng cáp Type-C cắm từ con ESP32 vào cổng USB máy tính.
+- *(Nếu máy tính chưa nhận cổng COM, tải driver CH340 ở phần Xử lý sự cố cuối bài)*.
+
+#### 3️⃣ Bước 3: Cài Extension PlatformIO trên VS Code
+- Bấm tổ hợp phím **`Ctrl + Shift + X`** (hoặc nhấp vào biểu tượng 4 ô vuông ở thanh công cụ góc trái VS Code).
+- Tìm kiếm từ khóa: **`PlatformIO IDE`** *(Có biểu tượng con kiến màu cam 🐜)*.
+- Bấm nút **Install** và chờ 1-2 phút cho VS Code tải hoàn tất.
+
+#### 4️⃣ Bước 4: Thực hiện Build & Upload (Nạp Code)
+- Nhấp vào **Biểu tượng Con Kiến 🐜 (PlatformIO)** ở thanh bên trái VS Code.
+- Tại mục **Project Tasks ➔ esp32dev**:
+  - 🔨 Bấm nút **`Build`** (để kiểm tra xem biên dịch C++ có báo lỗi không).
+  - ⬆️ Bấm nút **`Upload`** (để đẩy mã nguồn vào bộ nhớ ESP32 qua cổng USB).
+  - 🖥️ Bấm nút **`Monitor`** (để mở màn hình xem log Serial baud rate 115200).
 
 ---
 
 ## 🛠️ PHƯƠNG PHÁP 2: NẠP CODE BẰNG ARDUINO IDE
 
-Nếu bạn thích dùng phần mềm **Arduino IDE**:
+Nếu bạn muốn sử dụng phần mềm **Arduino IDE**:
 
 1. **Cài đặt Board ESP32 trong Arduino IDE:**
    - Vào `File -> Preferences` ➔ Tại ô *Additional Board Manager URLs*, dán link:
      `https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json`
    - Vào `Tools -> Board -> Boards Manager` ➔ Tìm `esp32` và bấm **Install**.
-2. **Cài đặt các Thư viện cần thiết:**
+2. **Cài đặt 3 Thư viện phụ thuộc:**
    - Vào `Tools -> Manage Libraries`, tìm và cài các thư viện sau:
      - `DHT sensor library` (bởi Adafruit)
      - `PubSubClient` (bởi Nick O'Leary)
      - `ArduinoJson` (bởi Benoit Blanchon)
-3. **Mở File Code & Chỉnh thông tin Wi-Fi:**
+3. **Mở File Code & Điền Wi-Fi:**
    - Mở file `firmware/config.h`.
    - Điền tên Wi-Fi và Mật khẩu vào dòng `WIFI_SSID` và `WIFI_PASSWORD`.
 4. **Chọn Board & Nạp Code:**
-   - Chọn `Tools -> Board -> esp32 -> ESP32 Dev Module`.
-   - Chọn `Tools -> Port -> COMx` (Cổng COM của ESP32).
-   - Bấm nút **Upload** (Mũi tên hướng sang phải) để nạp code.
+   - Vào `Tools -> Board -> esp32 -> ESP32 Dev Module`.
+   - Vào `Tools -> Port -> COMx` (Chọn đúng cổng COM của ESP32).
+   - Bấm nút **Upload (Mũi tên hướng sang phải ➔)** để nạp code.
 
 ---
 
@@ -59,9 +63,9 @@ Nếu bạn thích dùng phần mềm **Arduino IDE**:
 Sau khi nạp code thành công và ESP32 đã kết nối Wi-Fi:
 
 1. Đảm bảo Điện thoại hoặc Laptop của bạn đang kết nối **chung mạng Wi-Fi** với ESP32.
-2. Mở trình duyệt Web (Chrome, Safari, Edge...), gõ một trong hai địa chỉ sau:
+2. Mở trình duyệt Web (Chrome, Safari, Edge...), gõ địa chỉ:
    - Cách 1 (Dễ nhất): **`http://esp32.local`**
-   - Cách 2 (Dùng địa chỉ IP): **`http://192.168.1.50`** *(Thay 192.168.1.50 bằng IP in ra trên Serial Monitor)*.
+   - Cách 2 (Dùng địa chỉ IP): **`http://192.168.1.50`** *(Thay bằng IP thực tế in ra trên Serial Monitor)*.
 3. Giao diện **ESP32 Local Control Dashboard** hiện lên ngay lập tức!
    - Xem Nhiệt độ & Độ ẩm cập nhật tự động mỗi 2 giây.
    - Bật/Tắt công tắc Switch để điều khiển Đèn & Quạt trực tiếp.
