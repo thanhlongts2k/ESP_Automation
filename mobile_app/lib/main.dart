@@ -5,10 +5,17 @@ import 'package:http/http.dart' as http;
 import 'package:mqtt_client/mqtt_client.dart';
 import 'package:mqtt_client/mqtt_server_client.dart';
 
+/// ============================================================================
+/// DỰ ÁN: ESP32 IoT Automation Mobile App
+/// FRAMEWORK: FLUTTER SDK (CROSS-PLATFORM ANDROID & IOS)
+/// CHỨC NĂNG: GIÁM SÁT SENSOR REALTIME, LWT STATUS, RSSI, UPTIME & DUAL FALLBACK MQTT
+/// ============================================================================
+
 void main() {
   runApp(const EspAutomationApp());
 }
 
+/// Widget gốc cấu hình Theme Dark Mode Glassmorphism toàn ứng dụng
 class EspAutomationApp extends StatelessWidget {
   const EspAutomationApp({super.key});
 
@@ -18,10 +25,10 @@ class EspAutomationApp extends StatelessWidget {
       title: 'ESP32 Automation',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark().copyWith(
-        scaffoldBackgroundColor: const Color(0xFF0F172A),
+        scaffoldBackgroundColor: const Color(0xFF0F172A), // Nền xanh đen Dark Slate
         colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF38BDF8),
-          surface: Color(0xFF1E293B),
+          primary: Color(0xFF38BDF8), // Màu xanh Cyan nổi bật
+          surface: Color(0xFF1E293B), // Màu bề mặt Card
         ),
       ),
       home: const DashboardScreen(),
@@ -29,6 +36,7 @@ class EspAutomationApp extends StatelessWidget {
   }
 }
 
+/// Màn hình Dashboard điều khiển & hiển thị dữ liệu thời gian thực
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
 
@@ -37,13 +45,15 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  // Cấu hình MQTT & Local IP
+  // ==========================================================================
+  // CẤU HÌNH THÔNG SỐ MQTT CLOUD & DIỆN RỘNG NỘI BỘ (LOCAL IP)
+  // ==========================================================================
   final String mqttServer = "broker.emqx.io";
   final int mqttPort = 1883;
   final String localIp = "192.168.1.50";
   final String deviceId = "ESP32_Automation_01";
 
-  // Cụm Topics phân cấp theo device_id
+  // Cụm Topics phân cấp theo device_id chuẩn Enterprise
   late final String topicSensor = "esp32/$deviceId/sensors";
   late final String topicStatus = "esp32/$deviceId/status";
   late final String topicRelay1 = "esp32/$deviceId/control/relay1";
@@ -52,27 +62,28 @@ class _DashboardScreenState extends State<DashboardScreen> {
   MqttServerClient? mqttClient;
   StreamSubscription? _mqttSubscription;
 
+  // Quản lý trạng thái kết nối & LWT (Last Will and Testament)
   bool isMqttConnected = false;
-  bool isDeviceOnline = false; // Nhận diện qua LWT (Last Will and Testament)
-  bool isLocalMode = false;
+  bool isDeviceOnline = false; // Trạng thái sống/chết của thiết bị ESP32
+  bool isLocalMode = false;     // Chế độ dự phòng Local Wi-Fi REST API
 
   String version = "1.0.0";
-  int rssi = -60;
-  int uptimeSeconds = 0;
+  int rssi = -60;              // Cường độ tín hiệu Wi-Fi dBm
+  int uptimeSeconds = 0;       // Thời gian ESP32 chạy liên tục (Uptime)
 
-  // Data Cảm biến
-  double temperature = 0.0;
-  double humidity = 0.0;
-  double soilHumidity = 0.0;
-  bool relay1State = false; // Đèn
-  bool relay2State = false; // Quạt
+  // Lưu trữ chỉ số Cảm biến & Trạng thái Relay
+  double temperature = 0.0;    // Nhiệt độ (°C)
+  double humidity = 0.0;       // Độ ẩm không khí (%)
+  double soilHumidity = 0.0;   // Độ ẩm đất (%)
+  bool relay1State = false;    // Công tắc Đèn Chiếu Sáng (Relay 1)
+  bool relay2State = false;    // Công tắc Quạt Thông Gió (Relay 2)
 
   Timer? _localTimer;
 
   @override
   void initState() {
     super.initState();
-    _initMqtt();
+    _initMqtt(); // Khởi tạo kết nối MQTT ngay khi mở App
   }
 
   @override
@@ -86,7 +97,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     super.dispose();
   }
 
-  // Khởi tạo kết nối MQTT Dual Fallback (TCP 1883 ➔ WebSocket 8083)
+  // ==========================================================================
+  // THUẬT TOÁN DUAL FALLBACK MQTT (THỬ TCP 1883 ➔ CHUYỂN WEBSOCKET 8083 NẾU BỊ CHẶN)
+  // ==========================================================================
   Future<void> _initMqtt() async {
     _localTimer?.cancel();
     _mqttSubscription?.cancel();
@@ -101,7 +114,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
     final clientId = 'flutter_app_${DateTime.now().millisecondsSinceEpoch}';
 
-    // 1. Thử kết nối TCP Port 1883
+    // 1. Thử nghiệm kết nối qua giao thức TCP Port 1883 tiêu chuẩn
     mqttClient = MqttServerClient.withPort(mqttServer, clientId, mqttPort);
     mqttClient!.logging(on: false);
     mqttClient!.keepAlivePeriod = 60;
@@ -121,11 +134,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
         _tryWebSocketConnect(clientId);
       }
     } catch (e) {
-      debugPrint('--> [MQTT] TCP 1883 thất bại: $e. Thử WebSocket 8083...');
+      debugPrint('--> [MQTT] TCP 1883 thất bại: $e. Đang tự động chuyển sang WebSocket Port 8083...');
       _tryWebSocketConnect(clientId);
     }
   }
 
+  // Phương thức kết nối dự phòng WebSocket Port 8083 (xuyên qua tường lửa 4G/5G)
   Future<void> _tryWebSocketConnect(String clientId) async {
     try {
       if (mqttClient != null) {
@@ -156,8 +170,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
+  // Callback khi kết nối MQTT Broker thành công
   void _onConnected() {
-    debugPrint('✅ [MQTT] Đã kết nối thành công!');
+    debugPrint('✅ [MQTT] Đã kết nối thành công tới Broker Cloud!');
     if (!mounted) return;
 
     setState(() {
@@ -165,10 +180,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
       isLocalMode = false;
     });
 
-    // Subscribe cả Topic Cảm biến & Topic LWT Status (Hỗ trợ đọc cả topic cũ lẫn topic mới)
+    // Subscribe nhận dữ liệu từ cụm Topics phân cấp theo Device ID
     mqttClient!.subscribe(topicSensor, MqttQos.atMostOnce);
     mqttClient!.subscribe(topicStatus, MqttQos.atMostOnce);
-    mqttClient!.subscribe("esp32/sensors/dht22", MqttQos.atMostOnce); // Sub dự phòng topic cũ
+    mqttClient!.subscribe("esp32/sensors/dht22", MqttQos.atMostOnce); // Dự phòng topic cũ
 
     _mqttSubscription?.cancel();
     _mqttSubscription = mqttClient!.updates?.listen((List<MqttReceivedMessage<MqttMessage?>>? c) {
@@ -181,7 +196,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         final data = jsonDecode(pt);
         if (mounted) {
           setState(() {
-            // Xử lý LWT Status Topic
+            // 1. Nhận diện trạng thái LWT (Online / Offline)
             if (topic == topicStatus || data.containsKey('status')) {
               final statusStr = data['status']?.toString().toLowerCase();
               if (statusStr == 'online') {
@@ -191,7 +206,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               }
             }
 
-            // Xử lý Sensor Telemetry Topic
+            // 2. Nhận diện và cập nhật chỉ số Cảm biến Telemetry
             if (topic == topicSensor || topic == "esp32/sensors/dht22" || data.containsKey('temperature')) {
               isDeviceOnline = true; // Nhận được telemetry chứng tỏ thiết bị đang sống
               version = data['version']?.toString() ?? version;
@@ -211,11 +226,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
           });
         }
       } catch (e) {
-        debugPrint('Lỗi bóc tách JSON MQTT: $e');
+        debugPrint('Lỗi bóc tách chuỗi JSON MQTT: $e');
       }
     });
   }
 
+  // Callback khi ngắt kết nối MQTT
   void _onDisconnected() {
     debugPrint('❌ [MQTT] Bị ngắt kết nối!');
     if (mounted) {
@@ -226,20 +242,22 @@ class _DashboardScreenState extends State<DashboardScreen> {
     }
   }
 
-  // Điều khiển Relay (Đèn / Quạt)
+  // Gửi lệnh Bật/Tắt Relay (Đèn / Quạt) qua MQTT hoặc Local REST API
   Future<void> _toggleRelay(int relayNum, bool value) async {
     final stateStr = value ? "ON" : "OFF";
 
     if (!isLocalMode && isMqttConnected && mqttClient != null) {
+      // 1. Gửi lệnh qua MQTT Cloud
       final builder = MqttClientPayloadBuilder();
       builder.addString(stateStr);
       final topic = relayNum == 1 ? topicRelay1 : topicRelay2;
       mqttClient!.publishMessage(topic, MqttQos.atMostOnce, builder.payload!);
     } else {
+      // 2. Gửi lệnh qua REST API Wi-Fi nội bộ
       try {
         await http.get(Uri.parse('http://$localIp/api/relay$relayNum?state=$stateStr'));
       } catch (e) {
-        debugPrint('Lỗi gửi HTTP Local: $e');
+        debugPrint('Lỗi gửi HTTP Local API: $e');
       }
     }
 
@@ -249,6 +267,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  // Định dạng thời gian Uptime giây ➔ Giờ Phút Giây
   String _formatUptime(int seconds) {
     int hrs = seconds ~/ 3600;
     int mins = (seconds % 3600) ~/ 60;
@@ -256,6 +275,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     return '${hrs}h ${mins}m ${secs}s';
   }
 
+  // ==========================================================================
+  // XÂY DỰNG GIAO DIỆN NGƯỜI DÙNG (UI DASHBOARD)
+  // ==========================================================================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -275,7 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // Trạng thái kết nối Badge LWT
+            // 1. Trạng thái kết nối Badge LWT
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
@@ -318,7 +340,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Hiển thị Cường độ sóng Wi-Fi RSSI & Uptime
+            // 2. Hiển thị Cường độ sóng Wi-Fi RSSI & Thời gian chạy Uptime
             if (isMqttConnected && isDeviceOnline)
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -340,7 +362,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             const SizedBox(height: 20),
 
-            // Hàng hiển thị Cảm biến
+            // 3. Cụm Card hiển thị thông số Cảm biến (Nhiệt độ, Độ ẩm, Độ ẩm đất)
             Row(
               children: [
                 Expanded(
@@ -373,7 +395,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 24),
 
-            // Card Điều khiển Relay 1 (Đèn)
+            // 4. Card Điều khiển Relay 1 (Đèn Chiếu Sáng)
             _buildControlCard(
               title: 'Đèn Chiếu Sáng (Relay 1)',
               icon: Icons.lightbulb,
@@ -383,7 +405,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
             ),
             const SizedBox(height: 16),
 
-            // Card Điều khiển Relay 2 (Quạt)
+            // 5. Card Điều khiển Relay 2 (Quạt Thông Gió)
             _buildControlCard(
               title: 'Quạt Thông Gió (Relay 2)',
               icon: Icons.air,
@@ -403,6 +425,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Component tạo Card Cảm biến bo tròn góc mờ kính
   Widget _buildSensorCard({
     required String title,
     required String value,
@@ -434,6 +457,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     );
   }
 
+  // Component tạo Card Điều khiển Công tắc Switch
   Widget _buildControlCard({
     required String title,
     required IconData icon,
