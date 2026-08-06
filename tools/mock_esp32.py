@@ -187,6 +187,7 @@ def main():
     current_temp = 28.5
     current_hum = 65.0
     soil_hum = 55.0
+    use_soil_hum = False
     
     try:
         while True:
@@ -197,6 +198,9 @@ def main():
             current_temp = round(max(20.0, min(40.0, current_temp)), 1)
             current_hum = round(max(40.0, min(95.0, current_hum)), 1)
             soil_hum = round(max(20.0, min(95.0, soil_hum)), 1)
+
+            if use_soil_hum == False:
+                soil_hum = 0
             
             # Đóng gói JSON Payload Enterprise
             payload = {
