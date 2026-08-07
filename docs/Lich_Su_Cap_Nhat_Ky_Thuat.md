@@ -14,6 +14,25 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-07 14:15] - Nâng Cấp Kiến Trúc Mobile App Multiple Screen, SSL/TLS Proxy, SharedPreferences & Local REST API
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Tái Cấu Trúc Mã Nguồn Mobile App Multiple Screen (`mobile_app/lib/`)**:
+     - Phân rã `main.dart` thành mô hình Modular Clean Architecture: `lib/core/` (Theme, Constants), `lib/models/` (DeviceState), `lib/services/` (MqttService), `lib/screens/` (4 Màn hình chức năng).
+     - Sử dụng `IndexedStack` + `BottomNavigationBar` quản lý 4 màn hình: **Dashboard (Điều khiển)**, **History (Lịch sử)**, **Device Detail (Chi tiết phần cứng/RSSI/Uptime)**, **Settings (Cấu hình hệ thống)** mà không bị ngắt luồng kết nối MQTT.
+  2. **Bộ Nhớ Lưu Trữ Cấu Hình Vĩnh Viễn (`SharedPreferences`)**:
+     - Tự động lưu và khôi phục các thông số **MQTT Server, Port, SSL Mode, Username, Password, Device ID, Local IP** qua bộ nhớ máy khi đóng/mở lại ứng dụng.
+  3. **Hỗ Trợ Mã Hóa SSL/TLS cho Nginx SSL Stream Proxy (Port 8883 & 8084)**:
+     - Tích hợp `SecurityContext` và `onBadCertificate` cho phép App Android/iOS bắt tay mã hóa TLS với Nginx SSL Proxy Port 8883 và WebSocket WSS Port 8084.
+     - Bổ sung ô nhập Username / Password mã hóa trên giao diện Cấu hình.
+  4. **Tự Động Polling Local REST API (`/api/data`)**:
+     - Tự động phát hiện khi rỗng MQTT Domain hoặc đứt mạng Cloud ➔ Chuyển sang chế độ Local REST API.
+     - Polling định kỳ mỗi 2 giây gửi HTTP GET `/api/data` để đọc chỉ số cảm biến từ ESP32 trong mạng LAN.
+  5. **Tối Ưu Hóa Build Gradle Windows**:
+     - Thêm `kotlin.incremental=false` trong `android/gradle.properties` khắc phục triệt để lỗi gãy đệm Kotlin Daemon khi build cross-drive (ổ C: vs ổ D:).
+
+---
+
 ### 📌 [2026-08-07 10:30] - Quy Hoạch Toàn Bộ Bộ Công Cụ Phát Triển Về Thư Mục Dùng Chung D:\DevTools
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp:**

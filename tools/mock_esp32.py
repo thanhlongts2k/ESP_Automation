@@ -171,7 +171,10 @@ def main():
         client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
         
     if MQTT_PORT == 8883:
-        client.tls_set() # Bật SSL nếu dùng port 8883
+        import ssl
+        client.tls_set(cert_reqs=ssl.CERT_NONE)
+        client.tls_insecure_set(True)
+        print("🔒 [SSL/TLS] Đã bật mã hóa TLS Socket (Port 8883)")
         
     try:
         client.connect(MQTT_SERVER, MQTT_PORT, keepalive=60)
