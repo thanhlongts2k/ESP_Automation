@@ -33,8 +33,8 @@ class DashboardScreen extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(
                 color: state.isDeviceOnline
-                    ? Colors.green.withValues(alpha: 0.15)
-                    : Colors.red.withValues(alpha: 0.15),
+                    ? Colors.green.withOpacity(0.15)
+                    : Colors.red.withOpacity(0.15),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color: state.isDeviceOnline ? Colors.green : Colors.red,
@@ -165,7 +165,7 @@ class DashboardScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         children: [
@@ -197,7 +197,7 @@ class DashboardScreen extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1E293B),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -214,8 +214,8 @@ class DashboardScreen extends StatelessWidget {
           ),
           Switch(
             value: value,
-            activeTrackColor: activeColor.withValues(alpha: 0.5),
-            activeThumbColor: activeColor,
+            activeTrackColor: activeColor.withOpacity(0.5),
+            activeColor: activeColor,
             onChanged: onChanged,
           ),
         ],

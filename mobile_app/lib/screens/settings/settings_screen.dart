@@ -126,7 +126,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFF1E293B),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+                border: Border.all(color: Colors.white.withOpacity(0.05)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -143,8 +143,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   Switch(
                     value: _isSecure,
-                    activeTrackColor: const Color(0xFF38BDF8).withValues(alpha: 0.5),
-                    activeThumbColor: const Color(0xFF38BDF8),
+                    activeTrackColor: const Color(0xFF38BDF8).withOpacity(0.5),
+                    activeColor: const Color(0xFF38BDF8),
                     onChanged: (val) => setState(() => _isSecure = val),
                   ),
                 ],
@@ -218,7 +218,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         fillColor: const Color(0xFF1E293B),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
-          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.05)),
+          borderSide: BorderSide(color: Colors.white.withOpacity(0.05)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
