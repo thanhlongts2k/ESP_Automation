@@ -144,12 +144,12 @@ void executeHTTPSOTA(const char* url, const char* targetVersion) {
 // ============================================================================
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
   String message = "";
-  for (int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++) {
     message += (char)payload[i];
   }
-  Serial.printf("Nhận tin nhắn [%s]: %s\n", topic, message.c_str());
+  Serial.printf("📩 [MQTT Command] [%s]: %s\n", topic, message.c_str());
 
-  if (String(topic) == TOPIC_CONTROL_RELAY1) {
+  if (String(topic) == getTopicRelay1Control()) {
     if (message == "ON") {
       digitalWrite(RELAY1_PIN, RELAY_ACTIVE_LEVEL);
       relay1StateStr = "ON";
@@ -157,7 +157,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       digitalWrite(RELAY1_PIN, RELAY_INACTIVE_LEVEL);
       relay1StateStr = "OFF";
     }
-  } else if (String(topic) == TOPIC_CONTROL_RELAY2) {
+  } else if (String(topic) == getTopicRelay2Control()) {
     if (message == "ON") {
       digitalWrite(RELAY2_PIN, RELAY_ACTIVE_LEVEL);
       relay2StateStr = "ON";
@@ -165,7 +165,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
       digitalWrite(RELAY2_PIN, RELAY_INACTIVE_LEVEL);
       relay2StateStr = "OFF";
     }
-  } else if (String(topic) == TOPIC_OTA_TRIGGER) {
+  } else if (String(topic) == getTopicOTATrigger()) {
     StaticJsonDocument<384> doc;
     if (!deserializeJson(doc, message)) {
       const char* newVersion = doc["version"];
@@ -198,19 +198,46 @@ void setupWiFi() {
 
 void reconnectMQTT() {
   if (!mqttClient.connected()) {
-    Serial.print("Đang kết nối MQTT SSL Server (8883)...");
-    if (mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD)) {
-      Serial.println("Thành công!");
-      
+    Serial.printf("📡 [MQTT] Đang kết nối %s:%d...\n", MQTT_SERVER, MQTT_PORT);
+    
+    // LWT status di chúc
+    String lwtTopic = getTopicStatus();
+    StaticJsonDocument<128> lwtDoc;
+    lwtDoc["status"] = "offline";
+    lwtDoc["device_id"] = DEVICE_ID;
+    String lwtPayload;
+    serializeJson(lwtDoc, lwtPayload);
+
+    bool connected = false;
+    if (String(MQTT_USER).length() > 0) {
+      connected = mqttClient.connect(DEVICE_ID, MQTT_USER, MQTT_PASSWORD, lwtTopic.c_str(), 1, true, lwtPayload.c_str());
+    } else {
+      connected = mqttClient.connect(DEVICE_ID, lwtTopic.c_str(), 1, true, lwtPayload.c_str());
+    }
+
+    if (connected) {
+      Serial.println("✅ [MQTT] ĐÃ KẾT NỐI THÀNH CÔNG TỚI BROKER!");
+
+      // Anti-brick OTA status check
       const esp_partition_t *running = esp_ota_get_running_partition();
       esp_ota_img_states_t ota_state;
       if (esp_ota_get_state_partition(running, &ota_state) == ESP_OK && ota_state == ESP_OTA_IMG_PENDING_VERIFY) {
         esp_ota_mark_app_valid_cancel_rollback();
       }
 
-      mqttClient.subscribe(TOPIC_CONTROL_RELAY1);
-      mqttClient.subscribe(TOPIC_CONTROL_RELAY2);
-      mqttClient.subscribe(TOPIC_OTA_TRIGGER);
+      // Publish Online (Retained = true)
+      StaticJsonDocument<128> onlineDoc;
+      onlineDoc["status"] = "online";
+      onlineDoc["device_id"] = DEVICE_ID;
+      onlineDoc["version"] = FIRMWARE_VERSION;
+      String onlinePayload;
+      serializeJson(onlineDoc, onlinePayload);
+      mqttClient.publish(lwtTopic.c_str(), onlinePayload.c_str(), true);
+
+      // Subscribe topics phân cấp theo DEVICE_ID
+      mqttClient.subscribe(getTopicRelay1Control().c_str(), 1);
+      mqttClient.subscribe(getTopicRelay2Control().c_str(), 1);
+      mqttClient.subscribe(getTopicOTATrigger().c_str(), 1);
     }
   }
 }
@@ -270,17 +297,23 @@ void loop() {
       currentHumidity = h;
 
       if (mqttClient.connected()) {
-        StaticJsonDocument<200> doc;
+        StaticJsonDocument<384> doc;
         doc["device_id"] = DEVICE_ID;
         doc["temperature"] = currentTemperature;
         doc["humidity"] = currentHumidity;
+        doc["soil_humidity"] = 0.0;
         doc["relay1"] = relay1StateStr;
         doc["relay2"] = relay2StateStr;
+        doc["relay1_light"] = relay1StateStr;
+        doc["relay2_fan"] = relay2StateStr;
+        doc["rssi"] = WiFi.RSSI();
+        doc["ip"] = WiFi.localIP().toString();
         doc["version"] = FIRMWARE_VERSION;
+        doc["uptime_s"] = millis() / 1000;
 
-        char jsonBuffer[200];
+        char jsonBuffer[384];
         serializeJson(doc, jsonBuffer);
-        mqttClient.publish(TOPIC_SENSOR_DATA, jsonBuffer);
+        mqttClient.publish(getTopicSensors().c_str(), jsonBuffer);
       }
     }
   }

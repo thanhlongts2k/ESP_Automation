@@ -48,22 +48,34 @@
 #define MQTT_PASSWORD           ""
 #endif
 
-// Topics MQTT
-#ifndef TOPIC_SENSOR_DATA
-#define TOPIC_SENSOR_DATA       "esp32/sensors/dht22"       // Publish data JSON
+// Bật/tắt SSL tự động dựa theo Port (8883 = SSL, 1883/8083 = Thường)
+#ifndef MQTT_USE_SSL
+#if MQTT_PORT == 8883
+#define MQTT_USE_SSL            true
+#else
+#define MQTT_USE_SSL            false
+#endif
 #endif
 
-#ifndef TOPIC_CONTROL_RELAY1
-#define TOPIC_CONTROL_RELAY1    "esp32/control/relay1"      // Subscribe: Bật/Tắt Đèn ("ON"/"OFF")
-#endif
-
-#ifndef TOPIC_CONTROL_RELAY2
-#define TOPIC_CONTROL_RELAY2    "esp32/control/relay2"      // Subscribe: Bật/Tắt Quạt ("ON"/"OFF")
-#endif
-
-#ifndef TOPIC_OTA_TRIGGER
-#define TOPIC_OTA_TRIGGER       "esp32/system/ota_trigger"  // Subscribe: Kích hoạt OTA qua HTTPS
-#endif
+// ============================================================================
+// 4. TOPIC MQTT CHUẨN PHÂN CẤP THEO DEVICE_ID
+// ============================================================================
+// Mặc định tạo Topic chuẩn: esp32/{device_id}/...
+inline String getTopicSensors() {
+    return "esp32/" + String(DEVICE_ID) + "/sensors";
+}
+inline String getTopicStatus() {
+    return "esp32/" + String(DEVICE_ID) + "/status";
+}
+inline String getTopicRelay1Control() {
+    return "esp32/" + String(DEVICE_ID) + "/control/relay1";
+}
+inline String getTopicRelay2Control() {
+    return "esp32/" + String(DEVICE_ID) + "/control/relay2";
+}
+inline String getTopicOTATrigger() {
+    return "esp32/" + String(DEVICE_ID) + "/system/ota_trigger";
+}
 
 // ============================================================================
 // 4. CẤU HÌNH CHÂN GPIO PHẦN CỨNG (SỬ DỤNG VỚI CHÂN ĐẾ 30P)

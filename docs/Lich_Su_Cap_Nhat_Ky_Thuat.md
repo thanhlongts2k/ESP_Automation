@@ -14,6 +14,29 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-07 15:52] - Chuẩn Hóa Dynamic `${DEVICE_ID}` Topics Cho Firmware C++ & File Cấu Hình `.env`
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Đồng Bộ Bộ Hàm Topic Động Trong `firmware/config.h` & `ESP_Automation.ino`**:
+     - Thêm các hàm `getTopicSensors()`, `getTopicStatus()`, `getTopicRelay1Control()`, `getTopicRelay2Control()`, `getTopicOTATrigger()` vào `firmware/config.h`.
+     - Đã thay thế các chuỗi Topic hằng số tĩnh cũ (`esp32/sensors/dht22`) trong `ESP_Automation.ino` sang định dạng phân cấp động theo `DEVICE_ID`.
+  2. **Bổ Sung LWT Di Chúc Status Cho Arduino IDE (`ESP_Automation.ino`)**:
+     - Tự động đăng ký di chúc LWT `status` ("offline", retain = true) và tin nhắn `status` ("online", retain = true) khi kết nối MQTT Broker.
+  3. **Chuẩn Hóa Mẫu Cấu Hình `.env` & `.env.example`**:
+     - Cập nhật định dạng các biến Topic trong `.env` và `.env.example` theo dạng mẫu `esp32/${DEVICE_ID}/...`.
+
+---
+
+### 📌 [2026-08-07 15:35] - Fix Lỗi Tương Thích Ngược App Flutter Cho Các Phiên Bản Flutter SDK Cũ (v3.19 - v3.24)
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Khắc Phục Lỗi Biên Dịch `withValues`**:
+     - Thay thế toàn bộ 14 vị trí `Color.withValues(alpha: x)` thành `Color.withOpacity(x)` trên tất cả các màn hình (`DashboardScreen`, `HistoryScreen`, `DeviceDetailScreen`, `SettingsScreen`).
+  2. **Khắc Phục Lỗi Tham Số `activeThumbColor` Trong `Switch`**:
+     - Chuyển thuộc tính `activeThumbColor` ➔ `activeColor` trong `Switch` giúp code biên dịch mượt mà trên tất cả các phiên bản Flutter SDK cũ và mới.
+
+---
+
 ### 📌 [2026-08-07 15:25] - Nâng Cấp Firmware C++ ESP32 Đồng Bộ 100% Nginx SSL Proxy & Local REST API Data Schema
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp Chi Tiết:**
