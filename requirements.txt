@@ -1,0 +1,3 @@
+# Danh sách thư viện Python cần thiết cho dự án ESP_Automation
+paho-mqtt>=1.6.1
+platformio>=6.1.0
