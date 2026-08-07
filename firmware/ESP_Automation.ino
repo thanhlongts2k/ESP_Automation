@@ -49,13 +49,19 @@ void setupLocalWebDashboard() {
 
   // 2. API trả về JSON dữ liệu cảm biến & trạng thái Relay
   server.on("/api/data", HTTP_GET, []() {
-    StaticJsonDocument<256> doc;
+    StaticJsonDocument<384> doc;
+    doc["device_id"] = DEVICE_ID;
     doc["temperature"] = currentTemperature;
     doc["humidity"] = currentHumidity;
+    doc["soil_humidity"] = 0.0;
     doc["relay1"] = relay1StateStr;
     doc["relay2"] = relay2StateStr;
+    doc["relay1_light"] = relay1StateStr;
+    doc["relay2_fan"] = relay2StateStr;
+    doc["rssi"] = WiFi.RSSI();
     doc["ip"] = WiFi.localIP().toString();
     doc["version"] = FIRMWARE_VERSION;
+    doc["uptime_s"] = millis() / 1000;
 
     String jsonResponse;
     serializeJson(doc, jsonResponse);
@@ -223,7 +229,9 @@ void setup() {
   dht.begin();
   setupWiFi();
 
-  espClient.setCACert(root_ca_digicert);
+  if (MQTT_USE_SSL) {
+    espClient.setInsecure(); // Cho phép kết nối qua Nginx SSL Proxy mà không bị ngắt handshake
+  }
   mqttClient.setServer(MQTT_SERVER, MQTT_PORT);
   mqttClient.setCallback(mqttCallback);
 

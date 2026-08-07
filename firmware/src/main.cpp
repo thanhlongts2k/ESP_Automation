@@ -103,14 +103,19 @@ void setupLocalWebDashboard() {
 
     // Endpoint REST API lấy dữ liệu JSON cảm biến và trạng thái hệ thống
     server.on("/api/data", HTTP_GET, []() {
-        StaticJsonDocument<256> doc;
+        StaticJsonDocument<384> doc;
+        doc["device_id"] = DEVICE_ID;
         doc["temperature"] = sensorManager.getTemperature();
         doc["humidity"] = sensorManager.getHumidity();
         doc["soil_humidity"] = sensorManager.getSoilHumidity();
         doc["relay1"] = relayController.getRelay1StateStr();
         doc["relay2"] = relayController.getRelay2StateStr();
+        doc["relay1_light"] = relayController.getRelay1StateStr();
+        doc["relay2_fan"] = relayController.getRelay2StateStr();
+        doc["rssi"] = wifiManager.getRSSI();
         doc["ip"] = wifiManager.getLocalIP();
         doc["version"] = FIRMWARE_VERSION;
+        doc["uptime_s"] = millis() / 1000;
 
         String jsonResponse;
         serializeJson(doc, jsonResponse);

@@ -19,8 +19,9 @@ void MQTTManager::begin(MQTTCommandCallback callback) {
     _commandCallback = callback;
 
     if (MQTT_USE_SSL) {
-        Serial.println("🔒 [MQTT] Khởi tạo kết nối SSL/TLS Port 8883 (Root CA DigiCert)...");
-        _sslClient.setCACert(ROOT_CA_DIGICERT);
+        Serial.println("🔒 [MQTT] Khởi tạo kết nối SSL/TLS Port 8883 (Nginx Proxy / TLS)...");
+        // Cho phép kết nối SSL qua Nginx Proxy / Dynamic Let's Encrypt certs mà không bị từ chối handshake
+        _sslClient.setInsecure();
         _mqttClient.setClient(_sslClient);
     } else {
         Serial.printf("📡 [MQTT] Khởi tạo kết nối TCP Port %d...\n", MQTT_PORT);

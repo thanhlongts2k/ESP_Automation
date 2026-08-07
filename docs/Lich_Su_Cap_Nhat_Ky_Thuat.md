@@ -14,6 +14,20 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-07 15:25] - Nâng Cấp Firmware C++ ESP32 Đồng Bộ 100% Nginx SSL Proxy & Local REST API Data Schema
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Đồng Bộ Nginx SSL Stream Proxy Port 8883 (`WiFiClientSecure`)**:
+     - Cập nhật `mqtt_manager.cpp` & `ESP_Automation.ino` sử dụng `_sslClient.setInsecure()` khi `MQTT_USE_SSL` được bật.
+     - Cho phép ESP32 bắt tay mã hóa TLS mượt mà qua các Server Nginx SSL Proxy (Let's Encrypt / Dynamic Certs) trên cổng 8883 mà không bị rớt kết nối.
+  2. **Bổ Sung Enriched JSON Payload Cho Endpoint `/api/data`**:
+     - Cập nhật `/api/data` trong `firmware/src/main.cpp` và `ESP_Automation.ino` bổ sung đầy đủ trường dữ liệu: `device_id`, `soil_humidity`, `relay1_light`, `relay2_fan`, `rssi`, `uptime_s`.
+     - Đảm bảo khi Mobile App chuyển sang chế độ Local REST API Polling qua Wi-Fi LAN, dữ liệu nhận về khớp 100% với định dạng Telemetry của MQTT Cloud.
+  3. **Chú Thích Code Chi Tiết (Comprehensive Documentation & Comments)**:
+     - Ghi chú rõ ràng bằng tiếng Việt giải thích trong từng module C++ và hàm callback.
+
+---
+
 ### 📌 [2026-08-07 14:15] - Nâng Cấp Kiến Trúc Mobile App Multiple Screen, SSL/TLS Proxy, SharedPreferences & Local REST API
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp Chi Tiết:**
