@@ -20,9 +20,9 @@
 ## ⚡ 2. CÁCH BUILD & NẠP APP 1-CLICK DỄ NHẤT
 
 ### 🤖 Dành cho Android (Máy Windows):
-Mở thư mục `mobile_app` và **Nhấp đúp chuột (Double click)** vào file:
-- 📄 **`build_android.bat`** *(Hoặc chạy `.\build_android.ps1` trong PowerShell)*.
-👉 Script sẽ tự động: Build Release APK ➔ Nhận diện điện thoại qua ADB ➔ Nạp đè trực tiếp vào điện thoại chỉ trong vài giây!
+1. **Nếu chưa có Flutter SDK**: Nhấp đúp file **`install_flutter_windows.bat`** tại thư mục gốc dự án để tự động tải & giải nén Flutter SDK vào `C:\flutter` trong 1-click.
+2. **Build & Nạp App**: Mở thư mục `mobile_app` và nhấp đúp file **`build_android.bat`** *(hoặc chạy `.\build_android.ps1` trong PowerShell)*.
+👉 Script sẽ tự động: Kiểm tra Windows Developer Mode ➔ Build Release APK ➔ Nhận diện điện thoại qua ADB ➔ Nạp đè trực tiếp vào điện thoại chỉ trong vài giây!
 
 ### 🍏 Dành cho iPhone (Máy Mac):
 Mở thư mục `mobile_app` trên Mac và gõ lệnh:
