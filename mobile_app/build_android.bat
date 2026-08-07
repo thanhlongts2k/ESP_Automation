@@ -68,15 +68,13 @@ goto END
 
 :FLUTTER_MISSING
 echo.
-echo [LOI] Tren may moi nay CHUA CÀI DAT FLUTTER SDK (hoac chua add PATH)!
+echo [LOI] Tren may moi nay CHUA CAI DAT FLUTTER SDK (hoac chua giai nen vao C:\flutter)!
 echo.
-echo 📋 HUONG DAN NHAU HANG (CHỈ CẦN LÀM 1 LẦN DỰA TRÊN MÁY MỚI):
-echo    1. Tai Flutter Zip tai: https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.24.0-stable.zip
-echo    2. Giai nen thu muc "flutter" vao "C:\flutter" (hoac "D:\flutter")
-echo    3. Mo Start menu -> Go "env" -> Chon "Edit the system environment variables"
-echo       -> Chon "Environment Variables..." -> Double click "Path" trong mục User variables
-echo       -> Bam "New" -> Dan duong dan "C:\flutter\bin" -> Bam OK -> OK.
-echo    4. Mo lai file build_android.bat nay de chay tu dong 100%%!
+echo 💡 CAP NHAT BAN 1-CLICK TU DONG DL FLUTTER CHO MAY MOI:
+echo    - Anh chi can ra thu muc goc du an va NHAP DUP FILE "install_flutter_windows.bat"
+echo    - File bat do se TU DONG TAI VA GIAI NEN Flutter vao C:\flutter cho anh!
+echo.
+echo    Hoac anh tu giai nen file Zip Flutter vao thu muc "C:\flutter" (Script se tu dong NTIEN).
 goto END
 
 :PUB_ERROR
