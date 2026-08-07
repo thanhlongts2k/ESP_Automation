@@ -25,6 +25,17 @@ echo    Neu muon chay Script gia lap tools/mock_esp32.py, vui long tai Python ta
 echo.
 echo [2/4] Kiem tra Flutter SDK...
 where flutter >nul 2>&1
+if errorlevel 1 (
+    if exist "C:\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\flutter\bin"
+    if exist "C:\src\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\src\flutter\bin"
+    if exist "D:\flutter\bin\flutter.bat" set "PATH=%PATH%;D:\flutter\bin"
+    if exist "D:\src\flutter\bin\flutter.bat" set "PATH=%PATH%;D:\src\flutter\bin"
+    if exist "%USERPROFILE%\flutter\bin\flutter.bat" set "PATH=%PATH%;%USERPROFILE%\flutter\bin"
+    if exist "%USERPROFILE%\src\flutter\bin\flutter.bat" set "PATH=%PATH%;%USERPROFILE%\src\flutter\bin"
+    if exist "%LOCALAPPDATA%\flutter\bin\flutter.bat" set "PATH=%PATH%;%LOCALAPPDATA%\flutter\bin"
+)
+
+where flutter >nul 2>&1
 if errorlevel 1 goto FLUTTER_MISSING
 
 echo [OK] Da tim thay Flutter SDK!
@@ -37,12 +48,19 @@ goto CHECK_ADB
 
 :FLUTTER_MISSING
 echo [LOI] Khong tim thay Flutter SDK trong bien moi truong (PATH)!
-echo    De build Android App, vui long tai va cai dat Flutter tai: https://docs.flutter.dev/get-started/install/windows
-echo    Sau khi cai xong, hay them duong dan "flutter\bin" vao System Environment Variables (PATH).
+echo    Neu may moi da giai nen Flutter, hay copy vao "C:\flutter" (Script se tu dong nhan dien).
+echo    Hoac tai Flutter tai: https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.24.0-stable.zip
 
 :CHECK_ADB
 echo.
 echo [4/4] Kiem tra cong cu Android ADB...
+where adb >nul 2>&1
+if errorlevel 1 (
+    if exist "%ANDROID_HOME%\platform-tools\adb.exe" set "PATH=%PATH%;%ANDROID_HOME%\platform-tools"
+    if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;%LOCALAPPDATA%\Android\Sdk\platform-tools"
+    if exist "C:\Android\platform-tools\adb.exe" set "PATH=%PATH%;C:\Android\platform-tools"
+)
+
 where adb >nul 2>&1
 if errorlevel 1 goto ADB_MISSING
 
