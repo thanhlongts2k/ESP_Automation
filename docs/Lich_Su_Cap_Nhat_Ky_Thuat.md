@@ -14,6 +14,23 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-07 09:50] - Tự Động Hóa 1-Click Cài Đặt Android SDK, Java 17 & Fix Sửa Lỗi Gradle/AGP Build APK
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp:**
+  1. **`install_flutter_windows.bat`**: Script 1-Click tự động tải & giải nén Flutter SDK 3.24.0 vào `C:\flutter`.
+  2. **Tự Động Cài Đặt Môi Trường Build Android SDK (Command-Line Tools)**:
+     - Tự động tải & giải nén OpenJDK 17 (`C:\jdk-17.0.2`) và Android SDK (`C:\Android\Sdk`).
+     - Tự động tạo license hashes chấp nhận toàn bộ Android SDK licenses (`All SDK package licenses accepted`).
+  3. **`mobile_app/build_android.bat`**:
+     - Tự động kiểm tra trạng thái **Windows Developer Mode**, tự động mở Settings nếu chưa bật.
+     - Tự động nhận diện công cụ ADB tại `C:\Android\Sdk\platform-tools\adb.exe` và sửa lỗi CMD parser `. was unexpected at this time`.
+  4. **Cấu Hình Gradle & Flutter Compatibility**:
+     - `gradle-wrapper.properties`: Chuẩn hóa về **Gradle 8.7-all** (khắc phục lỗi Gradle 9x làm gãy Flutter `groovy.xml.QName`).
+     - `settings.gradle.kts` & `app/build.gradle.kts`: Cập nhật AGP `8.3.2`, Kotlin `1.9.24`, `kotlinOptions { jvmTarget = "17" }` và `ndkVersion = "25.1.8937393"`.
+     - Build thành công bản **Release APK** 18.9MB.
+
+---
+
 ### 📌 [2026-08-07 09:02] - Bổ Sung Script 1-Click Cài Đặt Môi Trường Tự Động Cho Máy Mới Clone Code
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Các File Liên Quan:**
