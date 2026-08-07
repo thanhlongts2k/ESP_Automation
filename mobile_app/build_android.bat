@@ -39,7 +39,7 @@ if errorlevel 1 goto PUB_ERROR
 
 echo:
 echo [3/4] Dang bien dich ban Release APK...
-call flutter build apk --release
+call flutter build apk --release --android-skip-build-dependency-validation
 if errorlevel 1 goto BUILD_ERROR
 
 echo:

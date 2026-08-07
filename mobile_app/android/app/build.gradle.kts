@@ -7,7 +7,7 @@ plugins {
 android {
     namespace = "com.doanhnghiep.espautomation.esp_automation_app"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = "25.1.8937393"
+    ndkVersion = "27.0.12077973"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
