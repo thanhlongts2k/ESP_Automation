@@ -9,11 +9,15 @@ echo.
 
 cd /d "%~dp0"
 
+:: Set GRADLE_USER_HOME to D:\DevTools\.gradle to avoid C: drive disk space issues
+if not defined GRADLE_USER_HOME set "GRADLE_USER_HOME=D:\DevTools\.gradle"
+
 echo [1/4] Kiem tra va tu dong tim kiem Flutter SDK...
 
 :: Tu dong tim Flutter trong cac thu muc pho bien tren Windows neu chua co trong PATH
 where flutter >nul 2>&1
 if errorlevel 1 (
+    if exist "D:\DevTools\Flutter\bin\flutter.bat" set "PATH=%PATH%;D:\DevTools\Flutter\bin"
     if exist "C:\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\flutter\bin"
     if exist "C:\src\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\src\flutter\bin"
     if exist "D:\flutter\bin\flutter.bat" set "PATH=%PATH%;D:\flutter\bin"
@@ -28,53 +32,57 @@ if errorlevel 1 goto FLUTTER_MISSING
 
 echo [OK] Da tim thay Flutter SDK!
 
-echo.
+echo:
 echo [2/4] Dang tu dong tai va cap nhat cac thu vien Flutter App (pubspec.yaml)...
 call flutter pub get
 if errorlevel 1 goto PUB_ERROR
 
-echo.
+echo:
 echo [3/4] Dang bien dich ban Release APK...
-call flutter build apk --release --android-skip-build-dependency-validation
+call flutter build apk --release
 if errorlevel 1 goto BUILD_ERROR
 
-echo.
+echo:
 echo [4/4] Dang quet va tu dong nap vao dien thoai Android qua ADB...
-where adb >nul 2>&1
-if errorlevel 1 (
-    if exist "%ANDROID_HOME%\platform-tools\adb.exe" set "PATH=%PATH%;%ANDROID_HOME%\platform-tools"
-    if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;%LOCALAPPDATA%\Android\Sdk\platform-tools"
-    if exist "C:\Android\platform-tools\adb.exe" set "PATH=%PATH%;C:\Android\platform-tools"
-)
 
 where adb >nul 2>&1
-if errorlevel 1 (
-    echo.
-    echo [CHU Y] File APK da build thanh cong tai:
-    echo    mobile_app\build\app\outputs\flutter-apk\app-release.apk
-    echo    (Chua tim thay tool ADB trong PATH de tu dong nap vao dien thoai).
-    goto END
-)
+if not errorlevel 1 goto RUN_ADB
 
+if exist "D:\DevTools\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;D:\DevTools\Android\Sdk\platform-tools"
+if exist "%ANDROID_HOME%\platform-tools\adb.exe" set "PATH=%PATH%;%ANDROID_HOME%\platform-tools"
+if exist "C:\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;C:\Android\Sdk\platform-tools"
+if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;%LOCALAPPDATA%\Android\Sdk\platform-tools"
+if exist "C:\Android\platform-tools\adb.exe" set "PATH=%PATH%;C:\Android\platform-tools"
+
+where adb >nul 2>&1
+if errorlevel 1 goto ADB_NOT_FOUND
+
+:RUN_ADB
 call adb devices
 call adb install -r build\app\outputs\flutter-apk\app-release.apk
 if errorlevel 1 goto INSTALL_WARNING
 
-echo.
+echo:
 echo ==============================================================================
 echo  THANH CONG: App da duoc nap muot ma 100%% vao dien thoai Android!
 echo ==============================================================================
 goto END
 
+:ADB_NOT_FOUND
+echo [CHU Y] File APK da build thanh cong tai:
+echo    mobile_app\build\app\outputs\flutter-apk\app-release.apk
+echo    (Chua tim thay tool ADB trong PATH de tu dong nap vao dien thoai).
+goto END
+
 :FLUTTER_MISSING
-echo.
-echo [LOI] Tren may moi nay CHUA CAI DAT FLUTTER SDK (hoac chua giai nen vao C:\flutter)!
-echo.
+echo:
+echo [LOI] Tren may moi nay CHUA CAI DAT FLUTTER SDK (hoac chua giai nen vao D:\DevTools\Flutter)!
+echo:
 echo  CAP NHAT BAN 1-CLICK TU DONG DL FLUTTER CHO MAY MOI:
 echo    - Anh chi can ra thu muc goc du an va NHAP DUP FILE "install_flutter_windows.bat"
-echo    - File bat do se TU DONG TAI VA GIAI NEN Flutter vao C:\flutter cho anh!
-echo.
-echo    Hoac anh tu giai nen file Zip Flutter vao thu muc "C:\flutter" (Script se tu dong NTIEN).
+echo    - File bat do se TU DONG TAI VA GIAI NEN Flutter vao D:\DevTools\Flutter cho anh!
+echo:
+echo    Hoac anh tu giai nen file Zip Flutter vao thu muc "D:\DevTools\Flutter" (Script se tu dong nhan dien).
 goto END
 
 :PUB_ERROR

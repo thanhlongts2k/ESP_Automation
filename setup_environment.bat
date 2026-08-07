@@ -26,6 +26,7 @@ echo.
 echo [2/4] Kiem tra Flutter SDK...
 where flutter >nul 2>&1
 if errorlevel 1 (
+    if exist "D:\DevTools\Flutter\bin\flutter.bat" set "PATH=%PATH%;D:\DevTools\Flutter\bin"
     if exist "C:\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\flutter\bin"
     if exist "C:\src\flutter\bin\flutter.bat" set "PATH=%PATH%;C:\src\flutter\bin"
     if exist "D:\flutter\bin\flutter.bat" set "PATH=%PATH%;D:\flutter\bin"
@@ -48,14 +49,15 @@ goto CHECK_ADB
 
 :FLUTTER_MISSING
 echo [LOI] Khong tim thay Flutter SDK trong bien moi truong (PATH)!
-echo    Neu may moi da giai nen Flutter, hay copy vao "C:\flutter" (Script se tu dong nhan dien).
-echo    Hoac tai Flutter tai: https://storage.googleapis.com/flutter_infra_release/releases/stable/windows/flutter_windows_3.24.0-stable.zip
+echo    Neu may moi da giai nen Flutter, hay copy vao "D:\DevTools\Flutter" (Script se tu dong nhan dien).
+echo    Hoac chay install_flutter_windows.bat de tu dong tai va giai nen!
 
 :CHECK_ADB
 echo.
 echo [4/4] Kiem tra cong cu Android ADB...
 where adb >nul 2>&1
 if errorlevel 1 (
+    if exist "D:\DevTools\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;D:\DevTools\Android\Sdk\platform-tools"
     if exist "%ANDROID_HOME%\platform-tools\adb.exe" set "PATH=%PATH%;%ANDROID_HOME%\platform-tools"
     if exist "%LOCALAPPDATA%\Android\Sdk\platform-tools\adb.exe" set "PATH=%PATH%;%LOCALAPPDATA%\Android\Sdk\platform-tools"
     if exist "C:\Android\platform-tools\adb.exe" set "PATH=%PATH%;C:\Android\platform-tools"

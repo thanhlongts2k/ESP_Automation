@@ -14,6 +14,25 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-07 10:30] - Quy Hoạch Toàn Bộ Bộ Công Cụ Phát Triển Về Thư Mục Dùng Chung D:\DevTools
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp:**
+  1. **Quy hoạch vị trí thư mục dùng chung trên ổ D:**
+     - Android SDK ➔ `D:\DevTools\Android`
+     - Flutter SDK ➔ `D:\DevTools\Flutter`
+     - OpenJDK 17 ➔ `D:\DevTools\Java`
+     - Gradle User Cache ➔ `D:\DevTools\.gradle`
+  2. **Biến môi trường hệ thống (User Environment Variables)**:
+     - `JAVA_HOME` = `D:\DevTools\Java`
+     - `ANDROID_HOME` = `D:\DevTools\Android\Sdk`
+     - `GRADLE_USER_HOME` = `D:\DevTools\.gradle`
+     - User `PATH` ➔ Bổ sung `D:\DevTools\Flutter\bin`, `D:\DevTools\Java\bin`, `D:\DevTools\Android\Sdk\platform-tools`.
+  3. **Đồng bộ hóa toàn bộ Scripts**:
+     - `install_flutter_windows.bat` ➔ Tự động tải & giải nén Flutter về `D:\DevTools\Flutter`.
+     - `setup_environment.bat` & `mobile_app/build_android.bat` ➔ Nhận diện ưu tiên hàng đầu tại `D:\DevTools\...`.
+
+---
+
 ### 📌 [2026-08-07 09:50] - Tự Động Hóa 1-Click Cài Đặt Android SDK, Java 17 & Fix Sửa Lỗi Gradle/AGP Build APK
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp:**
