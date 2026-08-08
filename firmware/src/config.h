@@ -19,7 +19,7 @@
 #endif
 
 // ============================================================================
-// 2. CẤU HÌNH WI-FI
+// 2. CẤU HÌNH WI-FI & CAPTIVE PORTAL AP MODE
 // ============================================================================
 #ifndef WIFI_SSID
 #define WIFI_SSID               "Tên_WiFi_Nha_Ban"
@@ -28,6 +28,17 @@
 #ifndef WIFI_PASSWORD
 #define WIFI_PASSWORD           "Mat_Khau_WiFi_Nha_Ban"
 #endif
+
+#ifndef AP_SSID
+#define AP_SSID                 "ESP32-Setup-AP"
+#endif
+
+#ifndef AP_PASSWORD
+#define AP_PASSWORD             "" // Mạng AP không mật khẩu để dễ dàng kết nối
+#endif
+
+#define WIFI_CONNECT_TIMEOUT_MS 15000 // 15 giây thử kết nối trước khi phát AP Captive Portal
+#define BOOT_BUTTON_PIN         0     // Chân nút nhấn BOOT (GPIO 0) giữ 3s để reset Wi-Fi NVS
 
 // ============================================================================
 // 3. CẤU HÌNH MQTT BROKER & SSL/TLS

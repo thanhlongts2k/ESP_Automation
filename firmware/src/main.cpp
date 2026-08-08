@@ -173,13 +173,15 @@ void setup() {
     relayController.begin();
     sensorManager.begin();
 
-    // 2. Khởi tạo dịch vụ kết nối Wi-Fi & MQTT Client
-    wifiManager.begin();
-    mqttManager.begin(handleMQTTCommand);
+    // 2. Khởi tạo dịch vụ Wi-Fi (Tự động nạp NVS & kích hoạt Captive Portal nếu rớt Wi-Fi)
+    wifiManager.begin(&server);
 
-    // 3. Khởi chạy các dịch vụ mạng nội bộ
-    setupArduinoOTA();
-    setupLocalWebDashboard();
+    // 3. Nếu ở chế độ Station Mode (Đã kết nối Wi-Fi thành công) -> Bật MQTT & Web Dashboard
+    if (!wifiManager.isAPMode()) {
+        mqttManager.begin(handleMQTTCommand);
+        setupArduinoOTA();
+        setupLocalWebDashboard();
+    }
 }
 
 // ============================================================================

@@ -65,9 +65,12 @@ graph TD
 - **Cấu hình Pinout Chân đế 30P**: GPIO 23 (DHT22), GPIO 34 (Soil Analog), GPIO 18 (Relay 1), GPIO 19 (Relay 2).
 - **Mức kích Relay**: `RELAY_ACTIVE_LEVEL = LOW` (0V đóng Relay, 5V ngắt Relay).
 
-### 2. 📶 `WiFiManager` - Quản lý kết nối Wi-Fi phi bất đồng bộ
-- **Thuật toán**: Sử dụng `millis()` kiểm tra trạng thái định kỳ 5 giây, tuyệt đối không dùng `delay()` làm treo luồng chương trình.
-- **Tự động khôi phục**: Khi sóng Wi-Fi bị đứt, `WiFiManager` ngầm kích hoạt `WiFi.begin()` lại mà không ảnh hưởng tới hoạt động ngắt Relay local.
+### 2. 📶 `WiFiManager` - Quản lý Wi-Fi, Captive Portal & Lưu trữ NVS Multi-WiFi
+- **Cấu hình NVS Flash (`Preferences.h`)**: Cho phép lưu tới 5 bộ SSID & Mật khẩu Wi-Fi trực tiếp vào Flash NVS, tuyệt đối không lộ secret lên Git.
+- **Tự động chuyển vùng (`WiFiMulti`)**: Tự động scan và chọn mạng Wi-Fi có tín hiệu RSSI mạnh nhất trong danh sách đã lưu.
+- **Captive Portal AP Mode (`DNSServer` + `WebServer`)**: Khi không kết nối được mạng Wi-Fi nào (hoặc rớt sóng quá 15s), ESP32 tự phát mạng Wi-Fi AP `ESP32-Setup-AP` (IP: `192.168.4.1`) kèm DNS Redirection. Màn hình điện thoại/PC sẽ tự động nhảy trang Web cài đặt Wi-Fi Glassmorphism cho phép chọn Wi-Fi xung quanh và lưu mật khẩu.
+- **Nút nhấn BOOT (GPIO 0) Reset Wi-Fi**: Nhấn giữ nút BOOT trên ESP32 trong 3 giây để xóa toàn bộ Wi-Fi trong NVS và khởi động lại về chế độ Captive Portal AP.
+- **Thuật toán phi bất đồng bộ**: Kiểm tra sóng ngầm bằng `millis()`, không làm đơ hay gián đoạn các luồng điều khiển Relay và đọc Cảm biến.
 
 ### 3. 🌡️ `SensorManager` - Đọc & Cache Cảm biến
 - **Cảm biến DHT22**: Đọc nhiệt độ (°C) và độ ẩm không khí (%). Kiểm tra cờ `isnan()` để lọc các giá trị lỗi rác.

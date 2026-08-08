@@ -14,6 +14,25 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-08 11:27] - Nâng Cấp Tính Năng Captive Portal AP & Quản Lý Multi Wi-Fi NVS Cho Firmware ESP32
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Tích Hợp Chế Độ Captive Portal AP (`DNSServer` + `WebServer`)**:
+     - Khi không nối được Wi-Fi (hoặc rớt mạng quá 15s), ESP32 tự phát Wi-Fi AP `ESP32-Setup-AP` (IP: `192.168.4.1`) kèm DNS Redirection.
+     - Trang Web Cấu hình HTML/CSS Glassmorphism nhúng PROGMEM tự động nhảy ra trên màn hình điện thoại/laptop kết nối vào.
+     - Hỗ trợ nút `🔄 Quét danh sách Wi-Fi xung quanh` (API `/api/wifi-scan`) và form lưu mật khẩu (POST `/save-wifi`).
+  2. **Quản Lý Multi Wi-Fi & Bộ Nhớ Flash NVS (`Preferences.h` & `WiFiMulti`)**:
+     - Lưu tối đa 5 mạng Wi-Fi vào NVS namespace `"wificreds"`.
+     - Tự động chọn kết nối tới mạng Wi-Fi có sóng RSSI mạnh nhất.
+     - Giúp mã nguồn C++ trên Git hoàn toàn sạch sẽ 100%, không bị lộ bất kỳ mật khẩu thực tế nào.
+  3. **Nút Nhấn BOOT (GPIO 0) Reset Wi-Fi**:
+     - Nhấn giữ nút BOOT trên mạch ESP32 trong 3 giây để xóa sạch dữ liệu Wi-Fi trong NVS và khởi động lại về chế độ Captive Portal AP.
+  4. **Cập Nhật Tài Liệu Kỹ Thuật**:
+     - Cập nhật tài liệu kiến trúc `docs/Kien_Truc_Kiem_Soat_Firmware_ESP32.md` và tạo file `walkthrough.md`.
+     - Đã biên dịch kiểm thử thành công bằng PlatformIO (`SUCCESS - Took 11.18s`).
+
+---
+
 ### 📌 [2026-08-08 09:48] - Fix Lỗi Biên Dịch GCC Macro Escaping Trong `extra_script.py` Cho PlatformIO
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp Chi Tiết:**
