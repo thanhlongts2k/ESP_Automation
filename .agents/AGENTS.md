@@ -9,3 +9,7 @@
 
 2. **CHẶN LỘ BIẾN MÔI TRƯỜNG (.ENV):**
    - Luôn luôn đảm bảo các file chứa mật khẩu thực tế như `.env` nằm trong `.gitignore` và không bao giờ được add vào git stage.
+
+3. **MIỄN TRỪ HANDOVER LOG & THÔNG BÁO TELEGRAM:**
+   - Trong project `ESP_Automation`, KHÔNG CẦN tạo/cập nhật file `HANDOVER_LOG.md`.
+   - KHÔNG CẦN tự động gửi thông báo Telegram sau mỗi task trừ khi người dùng có yêu cầu cụ thể.

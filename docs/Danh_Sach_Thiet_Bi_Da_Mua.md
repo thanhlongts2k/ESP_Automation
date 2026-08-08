@@ -14,13 +14,15 @@ Tài liệu lưu trữ danh sách linh kiện, thông số kỹ thuật và tổ
 | **4** | **Cảm Biến Nhiệt Độ & Độ Ẩm DHT22 (AM2302)** | - Đo nhiệt độ: -40°C đến 80°C (Sai số ±0.5°C)<br>- Đo độ ẩm: 0% đến 100% (Sai số ±2%)<br>- Chuẩn giao tiếp: Digital 1-wire | 1 | ~45.000đ | Thu thập dữ liệu nhiệt độ và độ ẩm không khí môi trường để đẩy lên Server qua MQTT. |
 | **5** | **Dây Cắm Testboard 30cm (Cái - Cái)** | - Loại đầu nối: Female to Female (Cái - Cái)<br>- Số lượng: Tép 40 sợi dính liền | 1 | ~33.000đ | Dây dẫn nối tín hiệu chính từ Chân Đế ESP32 (Đực) sang Relay (Đực) và Cảm biến (Đực). |
 | **6** | **Dây Cắm Testboard 30cm (Đực - Cái)** | - Loại đầu nối: Male to Female (Đực - Cái)<br>- Số lượng: Tép 10 sợi | 1 | ~12.000đ | Dây dẫn nối dự phòng cho các cảm biến mở rộng khác. |
+| **7** | **Module Cảm Biến Chuyển Động SR501** | - Cảm biến hồng ngoại PIR (BISS0001)<br>- Điện áp nuôi: 5VDC, Tín hiệu OUT: 3.3V<br>- Góc quét <100°, Phạm vi tối đa 7m | 1 | 34.562đ | *(Wishlist bổ sung)* Cảm biến phát hiện chuyển động cơ thể người, phục vụ bật đèn tự động & chống trộm. |
+| **8** | **Module Cảm Biến Ánh Sáng Photodiode-TH373** | - Sử dụng Photodiode + IC so sánh LM393<br>- Điện áp nuôi: 3.3V - 5VDC<br>- Đầu ra Dual: Digital (DO) & Analog (AO) | 1 | 10.000đ | *(Wishlist bổ sung)* Đọc cường độ ánh sáng môi trường để tự động bật/tắt thiết bị theo ánh sáng thực tế. |
 
 ---
 
 ## 💰 2. Tổng Kết Chi Phí Mua Sắm
 
-- **Tổng số đơn hàng:** 6 đơn
-- **Tổng chi phí trọn bộ:** **~217.000 VNĐ**
+- **Tổng số linh kiện:** 8 thiết bị (6 thiết bị cốt lõi + 2 module cảm biến Wishlist)
+- **Tổng chi phí trọn bộ:** **~261.500 VNĐ** (Bộ Kit ban đầu ~217.000đ + 44.562đ từ 2 cảm biến mới)
 
 ---
 
