@@ -11,19 +11,21 @@ Tài liệu hướng dẫn chi tiết sơ đồ chân cắm (Pinout) và cách �
                │    CHÂN ĐẾ MỞ RỘNG ESP32 DEVKIT V1 30P       │
                └──────────────────┬───────────────────────────┘
                                   │
-         ┌────────────────────────┼────────────────────────┐
-         │ (Chân 5V, GND, GPIO23) │ (Chân 5V, GND, GPIO18,19)│
-         ▼                        ▼                        ▼
-┌──────────────────┐    ┌──────────────────┐    ┌──────────────────┐
-│ CẢM BIẾN DHT22   │    │  MODULE RELAY    │    │ TẢI ĐIỆN         │
-│ (Nhiệt độ/Độ ẩm) │    │  2 KÊNH 5V OPTO  │    │ 220V AC / DC     │
-├──────────────────┤    ├──────────────────┤    ├──────────────────┤
-│ VCC  ──> 5V      │    │ VCC  ──> 5V      │    │ Kênh 1 ──> Đèn 💡│
-│ GND  ──> GND     │    │ GND  ──> GND     │    │ Kênh 2 ──> Quạt 🌀│
-│ DATA ──> GPIO 23 │    │ IN1  ──> GPIO 18 │    └──────────────────┘
-└──────────────────┘    │ IN2  ──> GPIO 19 │
-                        └──────────────────┘
+          ┌────────────────────────┼────────────────────────┐
+          │ (Chân 5V, GND, GPIO23) │ (Chân 5V, GND, GPIO18,19)│
+          ▼                        ▼                        ▼
+┌──────────────────┐    ┌──────────────────┐    ┌──────────────────────────┐
+│ CẢM BIẾN DHT22   │    │  MODULE RELAY    │    │ TẢI ĐIỆN (TÙY CHỌN)      │
+│ (Nhiệt độ/Độ ẩm) │    │  2 KÊNH 5V OPTO  │    │ 220V AC / 5V-12V DC      │
+├──────────────────┤    ├──────────────────┤    ├──────────────────────────┤
+│ VCC  ──> 5V      │    │ VCC  ──> 5V      │    │ Kênh 1 ──> Đèn 💡 (Thật) │
+│ GND  ──> GND     │    │ GND  ──> GND     │    │ Kênh 2 ──> Quạt 🌀 (Thật)│
+│ DATA ──> GPIO 23 │    │ IN1  ──> GPIO 18 │    └──────────────────────────┘
+└──────────────────┘    │ IN2  ──> GPIO 19 │    *(Có thể thử nghiệm 100%   *
+                        └──────────────────┘     *qua Đèn LED báo trên Relay)*
 ```
+
+> 💡 **MẸO THỬ NGHIỆM AN TOÀN:** Bạn **KHÔNG CẦN** mua thêm bóng đèn hay quạt 220V để thử nghiệm ban đầu! Trên bo mạch **Module Relay 2 Kênh** đã tích hợp sẵn **2 Đèn LED báo trạng thái** (LED IN1 & LED IN2) và rơ-le cơ tạo ra tiếng **"tạch" (Click)** đóng ngắt tiếp điểm. Khi nhấn nút Bật/Tắt trên App Flutter hoặc Web Dashboard, rơ-le sẽ phát tiếng "tạch" và LED tương ứng sáng/tắt ngay lập tức mà không cần cắm điện 220V nguy hiểm.
 
 ---
 

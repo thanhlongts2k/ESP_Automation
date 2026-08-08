@@ -23,7 +23,13 @@ if os.path.exists(env_file):
         if v in config:
             v = config[v]
         config[k] = v
-        # Thêm định nghĩa -DKEY="VAL" vào GCC Compiler Flags
-        env.Append(CPPDEFINES=[(k, v)])
+        # Phân loại k/v để truyền đúng kiểu dữ liệu cho GCC Preprocessor
+        if v.isdigit():
+            env.Append(CPPDEFINES=[(k, int(v))])
+        elif v.lower() in ["true", "false"]:
+            env.Append(CPPDEFINES=[(k, 1 if v.lower() == "true" else 0)])
+        else:
+            # Đối với chuỗi (String): Bắt buộc bọc \\"VAL\\" để C++ Compiler nhận dạng thành String Literal
+            env.Append(CPPDEFINES=[(k, f'\\"{v}\\"')])
 else:
     print("--> Không tìm thấy file .env, sử dụng giá trị mặc định trong config.h")

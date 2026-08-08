@@ -39,3 +39,6 @@ Tài liệu lưu trữ danh sách linh kiện, thông số kỹ thuật và tổ
 3. **Chức năng thực thi:**
    - **Publish:** Định kỳ đẩy dữ liệu JSON (Nhiệt độ, Độ ẩm) từ DHT22 lên MQTT Broker.
    - **Subscribe:** Nhận lệnh đóng/mở từ Server/App để kích hoạt Relay bật/tắt Đèn & Quạt.
+
+> 💡 **LƯU Ý VỀ TẢI ĐIỆN (BÓNG ĐÈN / QUẠT 220V AC):**
+> Bạn **KHÔNG CẦN mua thêm** thiết bị điện 220V AC. Khi thử nghiệm giai đoạn đầu, Module Relay 2 Kênh đã có sẵn **2 Đèn LED trạng thái màu Đỏ/Xanh** và cuộn hút cơ tạo ra tiếng **"tạch" (Click)** đóng ngắt tiếp điểm. Bạn có thể test trực quan 100% việc Bật/Tắt qua App Flutter hay Web Dashboard dựa vào tiếng "tạch" và Đèn LED trên Relay mà không cần cắm điện lưới 220V. Khi triển khai thực tế vào nhà cửa, bạn chỉ cần trích dây nóng (L) của đèn/quạt có sẵn cắm vào cổng COM & NO của Relay.

@@ -35,6 +35,7 @@ const long sensorInterval = 2000; // Đọc cảm biến mỗi 2 giây
 
 float currentTemperature = 0.0;
 float currentHumidity = 0.0;
+float currentSoilHumidity = 0.0;
 String relay1StateStr = "OFF";
 String relay2StateStr = "OFF";
 
@@ -53,7 +54,7 @@ void setupLocalWebDashboard() {
     doc["device_id"] = DEVICE_ID;
     doc["temperature"] = currentTemperature;
     doc["humidity"] = currentHumidity;
-    doc["soil_humidity"] = 0.0;
+    doc["soil_humidity"] = currentSoilHumidity;
     doc["relay1"] = relay1StateStr;
     doc["relay2"] = relay2StateStr;
     doc["relay1_light"] = relay1StateStr;

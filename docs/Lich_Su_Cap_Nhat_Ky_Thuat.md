@@ -14,6 +14,41 @@ Tài liệu này lưu trữ lịch sử cập nhật kỹ thuật, trạng thái
 
 ## ⏱️ LỊCH SỬ CẬP NHẬT KỸ THUẬT (TIMELOGS)
 
+### 📌 [2026-08-08 09:48] - Fix Lỗi Biên Dịch GCC Macro Escaping Trong `extra_script.py` Cho PlatformIO
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Khắc Phục Lỗi Macro String Escaping**:
+     - Cập nhật script `extra_script.py` phân loại kiểu dữ liệu biến trong `.env`: Các chuỗi string được tự động bọc cú pháp `\\\"VAL\\\"` trước khi nạp vào `CPPDEFINES` của GCC Preprocessor.
+     - Khắc phục triệt để các lỗi biên dịch C++ macro: `'ESP32_Automation_01' was not declared in this scope`, `'api' was not declared in this scope`, và `too many decimal points in number` cho `FIRMWARE_VERSION`.
+  2. **Biên Dịch Thành Công 100%**:
+     - PlatformIO build thành công bản nạp binary `.pio/build/esp32dev/firmware.bin` (`SUCCESS - Took 17.58s`).
+
+---
+
+### 📌 [2026-08-08 08:20] - Biên Soạn Tài Liệu Mô Tả Kỹ Thuật Chi Tiết Kiến Trúc Firmware ESP32
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Tạo Mới Tài Liệu Kiến Trúc Firmware (`docs/Kien_Truc_Kiem_Soat_Firmware_ESP32.md`)**:
+     - Sơ đồ tương tác giữa các module C++ (Mermaid Diagram): Phần cứng ➔ `SensorManager` ➔ `main.cpp` ➔ `RelayController` (Hysteresis) ➔ `MQTTManager` ➔ `WebServer`.
+     - Phân tích chi tiết 5 module C++ cốt lõi: `config.h`, `WiFiManager`, `SensorManager`, `RelayController` (nhiệt độ 32°C/29°C), `MQTTManager` (Nginx SSL Proxy 8883, LWT di chúc, Backoff).
+     - Mô tả chi tiết Web Server PROGMEM HTML5 Glassmorphism & các Endpoint REST API (`/api/data`, `/api/relay1`, `/api/relay2`).
+     - Mô tả cơ chế OTA Anti-brick Rollback.
+  2. **Cập Nhật Index `README.md`**:
+     - Thêm liên kết truy cập nhanh tài liệu kiến trúc firmware mới vào bảng Index tài liệu.
+
+---
+
+### 📌 [2026-08-07 16:08] - Cập Nhật Làm Rõ Tải Điện 220V AC Trong Sơ Đồ Nối Dây & Danh Sách Linh Kiện
+- **Trạng thái:** 🟢 **[COMPLETED - READY]**
+- **Nội Dung Nâng Cấp Chi Tiết:**
+  1. **Làm Rõ Phương Thức Thử Nghiệm An Toàn Bằng Đèn LED Có Sẵn**:
+     - Cập nhật sơ đồ ASCII và lưu ý an toàn trong `Huong_Dan_Noi_Day_Phan_Cung.md`: Làm rõ rằng tải điện 220V AC là **tùy chọn (Optional)**.
+     - Người dùng **không cần mua thêm thiết bị 220V** khi thử nghiệm ban đầu; có thể thử nghiệm 100% việc Bật/Tắt Relay thông qua tiếng "tạch" (Click) và 2 Đèn LED tích hợp sẵn trên Module Relay 2 Kênh mà không cần điện cao thế nguy hiểm.
+  2. **Cập Nhật Danh Sách Linh Kiện `Danh_Sach_Thiet_Bi_Da_Mua.md`**:
+     - Thêm ghi chú giải thích rõ việc tận dụng bóng đèn/quạt có sẵn trong nhà khi đấu nối thực tế sau này.
+
+---
+
 ### 📌 [2026-08-07 15:52] - Chuẩn Hóa Dynamic `${DEVICE_ID}` Topics Cho Firmware C++ & File Cấu Hình `.env`
 - **Trạng thái:** 🟢 **[COMPLETED - READY]**
 - **Nội Dung Nâng Cấp Chi Tiết:**

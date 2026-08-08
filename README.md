@@ -16,7 +16,8 @@ Toàn bộ tài liệu thiết kế, nối dây phần cứng, hướng dẫn c�
 | 4 | 🔄 [Huong_Dan_Cap_Nhat_OTA_ESP32.md](file:///d:/Sources/ESP_Automation/docs/Huong_Dan_Cap_Nhat_OTA_ESP32.md) | Quy trình nạp code từ xa qua mạng Wi-Fi (ArduinoOTA & HTTP OTA Update). |
 | 5 | 🍏 [Huong_Dan_Build_iOS_Tren_Mac.md](file:///d:/Sources/ESP_Automation/docs/Huong_Dan_Build_iOS_Tren_Mac.md) | Hướng dẫn build và chạy App Flutter trên iPhone thật & iPhone ảo (iOS Simulator). |
 | 6 | 📅 [Ke_Hoach_Trien_Khai_Du_An.md](file:///d:/Sources/ESP_Automation/docs/Ke_Hoach_Trien_Khai_Du_An.md) | Lộ trình thiết kế kiến trúc, tính năng nâng cao và các mốc triển khai. |
-| 7 | ⏱️ [Lich_Su_Cap_Nhat_Ky_Thuat.md](file:///d:/Sources/ESP_Automation/docs/Lich_Su_Cap_Nhat_Ky_Thuat.md) | Nhật ký nâng cấp kỹ thuật, trạng thái các module code và nhật ký thay đổi. |
+| 7 | 📐 [Kien_Truc_Kiem_Soat_Firmware_ESP32.md](file:///d:/Sources/ESP_Automation/docs/Kien_Truc_Kiem_Soat_Firmware_ESP32.md) | Tài liệu kiến trúc sơ đồ các module C++, luồng dữ liệu, Hysteresis & SSL/TLS. |
+| 8 | ⏱️ [Lich_Su_Cap_Nhat_Ky_Thuat.md](file:///d:/Sources/ESP_Automation/docs/Lich_Su_Cap_Nhat_Ky_Thuat.md) | Nhật ký nâng cấp kỹ thuật, trạng thái các module code và nhật ký thay đổi. |
 
 ---
 
